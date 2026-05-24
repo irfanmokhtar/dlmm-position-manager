@@ -19,7 +19,7 @@ No test framework is set up. Verification is done live against the configured po
 
 ## What this is
 
-A single-pool Meteora DLMM (SOL/USDC) management app exposing SDK power beyond the official UI: granular per-bin add/remove, custom strategy blends, position resize, >70-bin rebalance, and a swap window. Pool address is effectively fixed via `POOL_ADDRESS` (defaults to the SOL/USDC pool in `lib/constants.ts`).
+A single-pool Meteora DLMM (SOL/USDC) management app exposing SDK power beyond the official UI: granular per-bin add/remove, custom strategy blends, add/rebalance/resize across **>70-bin extended positions**, fee/reward claims, and a Jupiter swap window. Pool address is effectively fixed via `POOL_ADDRESS` (defaults to the SOL/USDC pool in `lib/constants.ts`).
 
 ## Architecture
 
@@ -30,13 +30,20 @@ A single-pool Meteora DLMM (SOL/USDC) management app exposing SDK power beyond t
 **Write path.** Every write route accepts `dryRun` and routes through `lib/tx.ts`:
 - `previewTransactions` simulates **only the first** tx (later chunks depend on earlier ones — e.g. bin-array init — having already landed).
 - `sendTransactions` sends sequentially, confirming each before the next, stopping on first failure.
-- `signRequired` signs each tx with **only** the signers it declares as required. This is why creating a new position works: a fresh position `Keypair` is passed as an extra signer but only co-signs the creation tx; `partialSign` with a non-required signer throws.
+- `signRequired` derives the required-signer set from the **compiled message** (`tx.compileMessage()`), then `partialSign`s only the signers it holds. Critical: SDK-returned legacy `Transaction`s have an **empty `tx.signatures` until compile**, so reading that array directly signs nothing (and `simulateTransaction` defaults to `sigVerify=false`, so a dry-run won't catch it). This is why a fresh position `Keypair` passed as an extra signer co-signs the creation tx without `partialSign` throwing "unknown signer" on the deposit txs.
 
 The UI mirrors this with a **Preview → Execute** flow (Execute is gated behind a successful sim + `confirm()`), see `components/{AddLiquidityPanel,RemovePanel,ActionResult}.tsx`.
 
 **Strategy / distribution (`lib/strategies.ts`).** Two deposit paths:
 - *Preset* → `StrategyParameters {minBinId, maxBinId, strategyType}` for `addLiquidityByStrategy` / `initializePositionAndAddLiquidityByStrategy`.
-- *Custom blend* → weighted sum of per-bin bps from `calculate{Spot,Normal,BidAsk}Distribution`, largest-remainder normalized to 10000 bps **per side**, producing `BinAndAmount[]` for `addLiquidityByWeight` / `initializePositionAndAddLiquidityByWeight`. This is how arbitrary Spot+BidAsk mixes are expressed (the SDK has no single blended strategy type).
+- *Custom blend* → weighted sum of per-bin bps from `calculate{Spot,Normal,BidAsk}Distribution`, largest-remainder normalized to 10000 bps **per side**, producing `BinAndAmount[]` for `addLiquidityByWeight` / `initializePositionAndAddLiquidityByWeight`. This is how arbitrary Spot+BidAsk mixes are expressed (the SDK has no single blended strategy type). Blend is **≤70 bins only**.
+
+**Add liquidity by bin count (`app/api/liquidity/add`).** Branches on range width:
+- **≤70 bins**: the strategy/blend paths above.
+- **>70 and ≤1400 bins (preset only)**: extended-position flow matching the on-chain Solscan reference — `createExtendedEmptyPosition` (the `InitializePosition`) + `chunkDepositWithRebalanceEndpoint` (chunked `InitializeBinArray` + `RebalanceLiquidity` deposits), with `liquidityStrategyParameters` from `buildLiquidityStrategyParameters` + `getLiquidityStrategyParameterBuilder`. **Not** `addLiquidityByStrategyChunkable` — that method is itself 70-bin-limited per its own doc.
+- **>1400 bins**, or **blend + >70**: rejected with a 400.
+
+Bin↔price conversion for the by-price range UI is `lib/binmath.ts` (geometric spacing); human→raw `BN` amounts via `lib/amount.ts#toRaw`.
 
 ## DLMM SDK facts that shape the code
 

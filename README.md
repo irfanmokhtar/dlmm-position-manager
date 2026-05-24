@@ -34,5 +34,6 @@ components/ PoolHeader, BinChart, PositionTable
 - [x] **Phase 2** — resize width (`increase/decreasePositionLength`)
 - [x] **Phase 3** — rebalance/recenter (`simulateRebalancePositionWithBalancedStrategy` + `rebalancePosition`)
 - [x] **Phase 4** — claim fees/rewards + Jupiter swap window
+- [x] **Phase 5** — add liquidity > 70 bins (extended positions, preset-only, ≤ 1400)
 
 Full plan: `~/.claude/plans/i-want-to-create-jaunty-eagle.md`. Test guide: `TESTING.md`.

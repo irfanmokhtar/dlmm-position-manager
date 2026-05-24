@@ -73,7 +73,7 @@ curl -s localhost:3000/api/liquidity/add -H 'content-type: application/json' -d 
   "strategy": { "type": "preset", "kind": "Spot" } }' | jq '.preview'
 ```
 
-> Note: a range > 70 bins is rejected here — use **Resize** (Phase 2) or **Rebalance** (Phase 3) for wider/extended positions.
+> Ranges > 70 bins are supported — see Phase 5. Custom blend is still capped at 70 bins (preset required above 70).
 
 ---
 
@@ -136,6 +136,27 @@ curl -s localhost:3000/api/swap/quote -H 'content-type: application/json' -d '{
 > Set `JUPITER_API` in `.env.local` to override the default Jupiter endpoint if you have a paid host.
 
 ---
+
+## Phase 5 — Add liquidity > 70 bins (extended position)
+
+1. Add panel → Target **New position**, **By bins**, set a range ~**120 bins** wide (e.g. min `active-60`, max `active+60`). The blend toggle disables; label shows `extended · preset only`.
+2. Strategy **Spot**, small amounts → **Preview**.
+- [ ] Simulation OK; response reports **multiple txs** (1 create + N deposit chunks).
+3. **Execute** → confirm.
+- [ ] Open tx on Solscan = `InitializePosition`; fill txns = `InitializeBinArray` + `RebalanceLiquidity` (matches the reference account `BEwQYRWB31W3XBTRHPtnHLbxcre4ZTudezAnvDreePAa`).
+- [ ] Table shows the position with **width > 70**; its per-position chart spans the full range.
+4. Guards:
+- [ ] A range > **1400** bins disables Preview/Execute with a red `(max 1400)`.
+- [ ] Switching to **Custom blend** is impossible while > 70 bins.
+
+```bash
+# dry-run a 121-bin add (safe). Replace bin ids with active±60.
+curl -s localhost:3000/api/liquidity/add -H 'content-type: application/json' -d '{
+  "dryRun": true, "minBinId": -6168, "maxBinId": -6048, "xAmount": "0.05", "yAmount": "4",
+  "strategy": { "type": "preset", "kind": "Spot" } }' | jq '.preview, .positionPubKey'
+```
+
+> If the deposit simulation/wiring misbehaves, the documented fallback (plan B) is: create the empty extended position, then use the **Rebalance** panel (Phase 3) to fill it.
 
 ## Suggested full run order
 

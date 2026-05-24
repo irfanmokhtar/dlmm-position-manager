@@ -2,10 +2,17 @@ import { NextResponse } from "next/server";
 import { Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import BN from "bn.js";
 import { z } from "zod";
+import {
+  buildLiquidityStrategyParameters,
+  chunkDepositWithRebalanceEndpoint,
+  getLiquidityStrategyParameterBuilder,
+} from "@meteora-ag/dlmm";
 import { getDlmm } from "@/lib/dlmm";
 import { getWalletPublicKey } from "@/lib/solana";
 import { previewTransactions, sendTransactions } from "@/lib/tx";
-import { buildBlendedDistribution, presetStrategy } from "@/lib/strategies";
+import { buildBlendedDistribution, presetStrategy, STRATEGY_TYPE } from "@/lib/strategies";
+import { toRaw } from "@/lib/amount";
+import { MAX_POSITION_BINS } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -33,14 +40,6 @@ const Body = z.object({
   ]),
 });
 
-// human decimal string -> raw integer BN
-function toRaw(amount: string, decimals: number): BN {
-  const [whole, frac = ""] = amount.trim().split(".");
-  const fracPadded = (frac + "0".repeat(decimals)).slice(0, decimals);
-  const digits = ((whole || "0") + fracPadded).replace(/^0+(?=\d)/, "");
-  return new BN(digits || "0");
-}
-
 export async function POST(req: Request) {
   try {
     const body = Body.parse(await req.json());
@@ -48,9 +47,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "minBinId > maxBinId" }, { status: 400 });
     }
     const binCount = body.maxBinId - body.minBinId + 1;
-    if (binCount > 70) {
+    if (binCount > MAX_POSITION_BINS) {
       return NextResponse.json(
-        { error: "Range > 70 bins. Use resize/rebalance (extended positions) instead." },
+        { error: `Range ${binCount} bins exceeds the ${MAX_POSITION_BINS}-bin single-position cap.` },
+        { status: 400 },
+      );
+    }
+    const isExtended = binCount > 70;
+    if (isExtended && body.strategy.type !== "preset") {
+      return NextResponse.json(
+        { error: "Custom blend is limited to 70 bins. Pick a preset (Spot/Curve/BidAsk) for wider ranges." },
         { status: 400 },
       );
     }
@@ -79,7 +85,48 @@ export async function POST(req: Request) {
     const isNew = positionKp !== null;
 
     let txs: Transaction | Transaction[];
-    if (body.strategy.type === "preset") {
+    if (isExtended) {
+      // > 70 bins: single extended position, Solscan-style flow.
+      // createExtendedEmptyPosition (InitializePosition) + chunked
+      // InitializeBinArray + RebalanceLiquidity deposits. Preset only (guarded above).
+      const kind = (body.strategy as { kind: "Spot" | "Curve" | "BidAsk" }).kind;
+      const favorXInActiveId = !totalXAmount.isZero();
+      const lsp = buildLiquidityStrategyParameters(
+        totalXAmount,
+        totalYAmount,
+        new BN(body.minBinId - activeBinId),
+        new BN(body.maxBinId - activeBinId),
+        new BN(dlmm.lbPair.binStep),
+        favorXInActiveId,
+        new BN(activeBinId),
+        getLiquidityStrategyParameterBuilder(STRATEGY_TYPE[kind]),
+      );
+      const ixGroups = await chunkDepositWithRebalanceEndpoint(
+        dlmm,
+        presetStrategy(kind, body.minBinId, body.maxBinId),
+        body.slippage ?? 1, // slippagePercentage
+        5, // maxActiveBinSlippage (bins)
+        positionPubKey,
+        body.minBinId,
+        body.maxBinId,
+        lsp,
+        user,
+        user, // payer
+        false, // isParallel — keep sequential for the chunked sender
+      );
+      const depositTxs = ixGroups.map((g) => new Transaction().add(...g));
+      txs = isNew
+        ? [
+            await dlmm.createExtendedEmptyPosition(
+              body.minBinId,
+              body.maxBinId,
+              positionPubKey,
+              user,
+            ),
+            ...depositTxs,
+          ]
+        : depositTxs;
+    } else if (body.strategy.type === "preset") {
       const strategy = presetStrategy(body.strategy.kind, body.minBinId, body.maxBinId);
       txs = isNew
         ? await dlmm.initializePositionAndAddLiquidityByStrategy({

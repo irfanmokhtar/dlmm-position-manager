@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { PoolResponse, PositionInfo } from "@/lib/types";
 import { ActionResponse, postJson } from "@/lib/client";
 import { priceToBinId } from "@/lib/binmath";
+import { MAX_POSITION_BINS } from "@/lib/constants";
 import { ActionResult } from "./ActionResult";
 
 const input =
@@ -52,6 +53,11 @@ export function AddLiquidityPanel({
     setPreviewOk(false);
     setRes(null);
   }, [target, positions, active]);
+
+  // > 70 bins must use a preset (extended-position deposit endpoint takes no blend)
+  useEffect(() => {
+    if (maxBinId - minBinId + 1 > 70) setMode("preset");
+  }, [minBinId, maxBinId]);
 
   function applyPriceRange(lo: string, hi: string) {
     const a = priceToBinId(Number(lo), active, activePrice, binStep, "floor");
@@ -112,6 +118,7 @@ export function AddLiquidityPanel({
   }
 
   const binCount = maxBinId - minBinId + 1;
+  const tooWide = binCount > MAX_POSITION_BINS;
 
   return (
     <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
@@ -239,7 +246,9 @@ export function AddLiquidityPanel({
             Preset
           </button>
           <button
-            className={`rounded px-2 py-1 text-xs ${mode === "blend" ? "bg-neutral-700" : "bg-neutral-900"}`}
+            disabled={binCount > 70}
+            title={binCount > 70 ? "Custom blend limited to 70 bins" : undefined}
+            className={`rounded px-2 py-1 text-xs ${mode === "blend" ? "bg-neutral-700" : "bg-neutral-900"} disabled:opacity-40`}
             onClick={() => setMode("blend")}
           >
             Custom blend
@@ -286,20 +295,25 @@ export function AddLiquidityPanel({
           />
         </div>
         <div className="flex items-end text-xs text-neutral-500">
-          {binCount} bins {binCount > 70 && <span className="ml-1 text-amber-400">(max 70)</span>}
+          {binCount} bins
+          {tooWide ? (
+            <span className="ml-1 text-red-400">(max {MAX_POSITION_BINS})</span>
+          ) : binCount > 70 ? (
+            <span className="ml-1 text-amber-400">extended · preset only</span>
+          ) : null}
         </div>
       </div>
 
       <div className="mt-3 flex gap-2">
         <button
-          disabled={busy}
+          disabled={busy || tooWide}
           onClick={() => run(true)}
           className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-900 disabled:opacity-50"
         >
           {busy ? "…" : "Preview"}
         </button>
         <button
-          disabled={busy || !previewOk}
+          disabled={busy || !previewOk || tooWide}
           onClick={execute}
           className="rounded-lg bg-emerald-700 px-3 py-1.5 text-sm hover:bg-emerald-600 disabled:opacity-40"
         >

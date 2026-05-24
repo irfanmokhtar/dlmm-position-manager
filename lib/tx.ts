@@ -48,9 +48,16 @@ export function instructionsToTxs(
 }
 
 // A tx must be signed only by the signers it declares as required; partialSign
-// with an unrelated keypair throws "unknown signer".
+// with an unrelated keypair throws "unknown signer". The required-signer set is
+// read from the COMPILED message — `tx.signatures` is empty until compile, so
+// reading it directly would sign nothing. Requires feePayer + recentBlockhash
+// to already be set (see prepare()).
 function signRequired(tx: Transaction, signers: Keypair[]) {
-  const required = new Set(tx.signatures.map((s) => s.publicKey.toBase58()));
+  const msg = tx.compileMessage();
+  const required = new Set<string>();
+  for (let i = 0; i < msg.accountKeys.length; i++) {
+    if (msg.isAccountSigner(i)) required.add(msg.accountKeys[i].toBase58());
+  }
   const use = signers.filter((s) => required.has(s.publicKey.toBase58()));
   if (use.length) tx.partialSign(...use);
 }
