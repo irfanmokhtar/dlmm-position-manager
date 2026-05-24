@@ -58,7 +58,10 @@ export function BinChart({
               border: "1px solid #262626",
               borderRadius: 8,
               fontSize: 12,
+              color: "#e5e5e5",
             }}
+            labelStyle={{ color: "#e5e5e5" }}
+            itemStyle={{ color: "#e5e5e5" }}
             formatter={(v) => [`$${Number(v).toFixed(2)}`, "liquidity"]}
             labelFormatter={(l) => `bin ${l}`}
           />
