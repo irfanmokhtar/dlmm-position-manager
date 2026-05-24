@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PoolResponse, PositionInfo } from "@/lib/types";
 import { ActionResponse, postJson } from "@/lib/client";
+import { priceToBinId } from "@/lib/binmath";
 import { ActionResult } from "./ActionResult";
 
 const input =
@@ -19,9 +20,14 @@ export function AddLiquidityPanel({
   onDone: () => void;
 }) {
   const active = pool.activeBin.binId;
+  const activePrice = Number(pool.activeBin.pricePerToken);
+  const binStep = pool.pool.binStep;
   const [target, setTarget] = useState(""); // "" = new position
   const [minBinId, setMinBinId] = useState(active - 10);
   const [maxBinId, setMaxBinId] = useState(active + 10);
+  const [rangeMode, setRangeMode] = useState<"bins" | "price">("bins");
+  const [minPrice, setMinPrice] = useState((activePrice * 0.98).toFixed(4));
+  const [maxPrice, setMaxPrice] = useState((activePrice * 1.02).toFixed(4));
   const [xAmount, setXAmount] = useState("0");
   const [yAmount, setYAmount] = useState("0");
   const [mode, setMode] = useState<"preset" | "blend">("preset");
@@ -46,6 +52,21 @@ export function AddLiquidityPanel({
     setPreviewOk(false);
     setRes(null);
   }, [target, positions, active]);
+
+  function applyPriceRange(lo: string, hi: string) {
+    const a = priceToBinId(Number(lo), active, activePrice, binStep, "floor");
+    const b = priceToBinId(Number(hi), active, activePrice, binStep, "ceil");
+    setMinBinId(Math.min(a, b));
+    setMaxBinId(Math.max(a, b));
+  }
+
+  function pctPreset(pct: number) {
+    const lo = (activePrice * (1 - pct)).toFixed(4);
+    const hi = (activePrice * (1 + pct)).toFixed(4);
+    setMinPrice(lo);
+    setMaxPrice(hi);
+    applyPriceRange(lo, hi);
+  }
 
   function payload(dryRun: boolean) {
     return {
@@ -113,24 +134,85 @@ export function AddLiquidityPanel({
           </select>
         </div>
 
-        <div>
-          <span className={label}>Min bin</span>
-          <input
-            type="number"
-            className={input}
-            value={minBinId}
-            onChange={(e) => setMinBinId(Number(e.target.value))}
-          />
+        <div className="col-span-2 flex gap-2">
+          <button
+            className={`rounded px-2 py-1 text-xs ${rangeMode === "bins" ? "bg-neutral-700" : "bg-neutral-900"}`}
+            onClick={() => setRangeMode("bins")}
+          >
+            By bins
+          </button>
+          <button
+            className={`rounded px-2 py-1 text-xs ${rangeMode === "price" ? "bg-neutral-700" : "bg-neutral-900"}`}
+            onClick={() => {
+              setRangeMode("price");
+              applyPriceRange(minPrice, maxPrice);
+            }}
+          >
+            By price
+          </button>
         </div>
-        <div>
-          <span className={label}>Max bin (active {active})</span>
-          <input
-            type="number"
-            className={input}
-            value={maxBinId}
-            onChange={(e) => setMaxBinId(Number(e.target.value))}
-          />
-        </div>
+
+        {rangeMode === "bins" ? (
+          <>
+            <div>
+              <span className={label}>Min bin</span>
+              <input
+                type="number"
+                className={input}
+                value={minBinId}
+                onChange={(e) => setMinBinId(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <span className={label}>Max bin (active {active})</span>
+              <input
+                type="number"
+                className={input}
+                value={maxBinId}
+                onChange={(e) => setMaxBinId(Number(e.target.value))}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <span className={label}>Min price (active ${activePrice.toFixed(4)})</span>
+              <input
+                className={input}
+                value={minPrice}
+                onChange={(e) => {
+                  setMinPrice(e.target.value);
+                  applyPriceRange(e.target.value, maxPrice);
+                }}
+              />
+            </div>
+            <div>
+              <span className={label}>Max price</span>
+              <input
+                className={input}
+                value={maxPrice}
+                onChange={(e) => {
+                  setMaxPrice(e.target.value);
+                  applyPriceRange(minPrice, e.target.value);
+                }}
+              />
+            </div>
+            <div className="col-span-2 flex items-center gap-2 text-xs">
+              {[0.01, 0.02, 0.05].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => pctPreset(p)}
+                  className="rounded bg-neutral-900 px-2 py-1 hover:bg-neutral-800"
+                >
+                  ±{p * 100}%
+                </button>
+              ))}
+              <span className="ml-auto text-neutral-500">
+                → bins {minBinId}–{maxBinId}
+              </span>
+            </div>
+          </>
+        )}
 
         <div>
           <span className={label}>SOL amount</span>

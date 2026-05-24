@@ -35,6 +35,8 @@ export function BinChart({
     return { binId: b.binId, valueUsd, price };
   });
 
+  const priceById = new Map(chart.map((d) => [d.binId, d.price]));
+
   return (
     <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-5">
       <h3 className="mb-3 text-sm font-semibold text-neutral-300">
@@ -44,8 +46,12 @@ export function BinChart({
         <BarChart data={chart} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
           <XAxis
             dataKey="binId"
-            tick={{ fontSize: 10, fill: "#737373" }}
-            interval={6}
+            tick={{ fontSize: 9, fill: "#737373" }}
+            interval={8}
+            tickFormatter={(binId) => {
+              const p = priceById.get(Number(binId));
+              return p ? `$${p.toFixed(2)}` : String(binId);
+            }}
           />
           <YAxis
             tick={{ fontSize: 10, fill: "#737373" }}
@@ -63,7 +69,11 @@ export function BinChart({
             labelStyle={{ color: "#e5e5e5" }}
             itemStyle={{ color: "#e5e5e5" }}
             formatter={(v) => [`$${Number(v).toFixed(2)}`, "liquidity"]}
-            labelFormatter={(l) => `bin ${l}`}
+            labelFormatter={(l, payload) => {
+              const price = (payload?.[0] as { payload?: { price?: number } } | undefined)
+                ?.payload?.price;
+              return price ? `bin ${l} · $${price.toFixed(4)}` : `bin ${l}`;
+            }}
           />
           <ReferenceLine x={activeId} stroke="#f59e0b" strokeDasharray="3 3" />
           <Bar dataKey="valueUsd" radius={[2, 2, 0, 0]}>

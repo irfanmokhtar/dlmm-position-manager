@@ -30,6 +30,7 @@ export function PositionChart({
 
   const chart = position.binData.map((b) => ({
     binId: b.binId,
+    price: Number(b.pricePerToken),
     valueUsd:
       toUi(b.positionXAmount, dx) * Number(b.pricePerToken) +
       toUi(b.positionYAmount, dy),
@@ -79,7 +80,11 @@ export function PositionChart({
             labelStyle={{ color: "#e5e5e5" }}
             itemStyle={{ color: "#e5e5e5" }}
             formatter={(v) => [`$${Number(v).toFixed(2)}`, "liquidity"]}
-            labelFormatter={(l) => `bin ${l}`}
+            labelFormatter={(l, payload) => {
+              const price = (payload?.[0] as { payload?: { price?: number } } | undefined)
+                ?.payload?.price;
+              return price ? `bin ${l} · $${price.toFixed(4)}` : `bin ${l}`;
+            }}
           />
           {inRange && (
             <ReferenceLine
