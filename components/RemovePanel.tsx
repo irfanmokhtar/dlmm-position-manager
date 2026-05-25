@@ -13,12 +13,16 @@ const label = "text-xs uppercase tracking-wide text-neutral-500";
 export function RemovePanel({
   positions,
   onDone,
+  lockedPosition,
 }: {
   positions: PositionInfo[];
   onDone: () => void;
+  lockedPosition?: PositionInfo;
 }) {
   const { selected } = useWallet();
-  const [target, setTarget] = useState(positions[0]?.publicKey ?? "");
+  const [target, setTarget] = useState(
+    lockedPosition?.publicKey ?? positions[0]?.publicKey ?? "",
+  );
   const [fromBinId, setFromBinId] = useState(0);
   const [toBinId, setToBinId] = useState(0);
   const [bps, setBps] = useState(10000);
@@ -81,20 +85,22 @@ export function RemovePanel({
       <h3 className="mb-3 text-sm font-semibold">Remove liquidity</h3>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="col-span-2">
-          <span className={label}>Position</span>
-          <select
-            className={input}
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
-          >
-            {positions.map((p) => (
-              <option key={p.publicKey} value={p.publicKey}>
-                {p.publicKey.slice(0, 6)}… ({p.lowerBinId}–{p.upperBinId})
-              </option>
-            ))}
-          </select>
-        </div>
+        {!lockedPosition && (
+          <div className="col-span-2">
+            <span className={label}>Position</span>
+            <select
+              className={input}
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+            >
+              {positions.map((p) => (
+                <option key={p.publicKey} value={p.publicKey}>
+                  {p.publicKey.slice(0, 6)}… ({p.lowerBinId}–{p.upperBinId})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div>
           <span className={label}>From bin</span>

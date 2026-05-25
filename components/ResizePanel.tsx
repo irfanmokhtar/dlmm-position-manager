@@ -13,12 +13,16 @@ const label = "text-xs uppercase tracking-wide text-neutral-500";
 export function ResizePanel({
   positions,
   onDone,
+  lockedPosition,
 }: {
   positions: PositionInfo[];
   onDone: () => void;
+  lockedPosition?: PositionInfo;
 }) {
   const { selected } = useWallet();
-  const [target, setTarget] = useState(positions[0]?.publicKey ?? "");
+  const [target, setTarget] = useState(
+    lockedPosition?.publicKey ?? positions[0]?.publicKey ?? "",
+  );
   const [action, setAction] = useState<"increase" | "decrease">("increase");
   const [side, setSide] = useState<"Lower" | "Upper">("Upper");
   const [length, setLength] = useState(10);
@@ -80,20 +84,22 @@ export function ResizePanel({
       <h3 className="mb-3 text-sm font-semibold">Resize width</h3>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="col-span-2">
-          <span className={label}>Position {pos ? `(${width} bins)` : ""}</span>
-          <select
-            className={input}
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
-          >
-            {positions.map((p) => (
-              <option key={p.publicKey} value={p.publicKey}>
-                {p.publicKey.slice(0, 6)}… ({p.lowerBinId}–{p.upperBinId})
-              </option>
-            ))}
-          </select>
-        </div>
+        {!lockedPosition && (
+          <div className="col-span-2">
+            <span className={label}>Position {pos ? `(${width} bins)` : ""}</span>
+            <select
+              className={input}
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+            >
+              {positions.map((p) => (
+                <option key={p.publicKey} value={p.publicKey}>
+                  {p.publicKey.slice(0, 6)}… ({p.lowerBinId}–{p.upperBinId})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div>
           <span className={label}>Action</span>

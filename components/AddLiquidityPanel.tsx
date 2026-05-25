@@ -16,16 +16,18 @@ export function AddLiquidityPanel({
   pool,
   positions,
   onDone,
+  lockedPosition,
 }: {
   pool: PoolResponse;
   positions: PositionInfo[];
   onDone: () => void;
+  lockedPosition?: PositionInfo;
 }) {
   const { selected } = useWallet();
   const active = pool.activeBin.binId;
   const activePrice = Number(pool.activeBin.pricePerToken);
   const binStep = pool.pool.binStep;
-  const [target, setTarget] = useState(""); // "" = new position
+  const [target, setTarget] = useState(lockedPosition?.publicKey ?? ""); // "" = new position
   const [minBinId, setMinBinId] = useState(active - 10);
   const [maxBinId, setMaxBinId] = useState(active + 10);
   const [rangeMode, setRangeMode] = useState<"bins" | "price">("bins");
@@ -128,21 +130,23 @@ export function AddLiquidityPanel({
       <h3 className="mb-3 text-sm font-semibold">Add liquidity</h3>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="col-span-2">
-          <span className={label}>Target</span>
-          <select
-            className={input}
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
-          >
-            <option value="">＋ New position</option>
-            {positions.map((p) => (
-              <option key={p.publicKey} value={p.publicKey}>
-                {p.publicKey.slice(0, 6)}… ({p.lowerBinId}–{p.upperBinId})
-              </option>
-            ))}
-          </select>
-        </div>
+        {!lockedPosition && (
+          <div className="col-span-2">
+            <span className={label}>Target</span>
+            <select
+              className={input}
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+            >
+              <option value="">＋ New position</option>
+              {positions.map((p) => (
+                <option key={p.publicKey} value={p.publicKey}>
+                  {p.publicKey.slice(0, 6)}… ({p.lowerBinId}–{p.upperBinId})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="col-span-2 flex gap-2">
           <button

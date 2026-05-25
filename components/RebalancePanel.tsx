@@ -13,12 +13,16 @@ const label = "text-xs uppercase tracking-wide text-neutral-500";
 export function RebalancePanel({
   positions,
   onDone,
+  lockedPosition,
 }: {
   positions: PositionInfo[];
   onDone: () => void;
+  lockedPosition?: PositionInfo;
 }) {
   const { selected } = useWallet();
-  const [target, setTarget] = useState(positions[0]?.publicKey ?? "");
+  const [target, setTarget] = useState(
+    lockedPosition?.publicKey ?? positions[0]?.publicKey ?? "",
+  );
   const [strategy, setStrategy] = useState<"Spot" | "Curve" | "BidAsk">("Spot");
   const [withdrawXBps, setWithdrawXBps] = useState(10000);
   const [withdrawYBps, setWithdrawYBps] = useState(10000);
@@ -84,20 +88,22 @@ export function RebalancePanel({
       <h3 className="mb-3 text-sm font-semibold">Rebalance (recenter)</h3>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="col-span-2">
-          <span className={label}>Position</span>
-          <select
-            className={input}
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
-          >
-            {positions.map((p) => (
-              <option key={p.publicKey} value={p.publicKey}>
-                {p.publicKey.slice(0, 6)}… ({p.lowerBinId}–{p.upperBinId})
-              </option>
-            ))}
-          </select>
-        </div>
+        {!lockedPosition && (
+          <div className="col-span-2">
+            <span className={label}>Position</span>
+            <select
+              className={input}
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+            >
+              {positions.map((p) => (
+                <option key={p.publicKey} value={p.publicKey}>
+                  {p.publicKey.slice(0, 6)}… ({p.lowerBinId}–{p.upperBinId})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div>
           <span className={label}>Shape</span>

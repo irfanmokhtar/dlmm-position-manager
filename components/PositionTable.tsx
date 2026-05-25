@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { PoolResponse, PositionsResponse, toUi } from "@/lib/types";
 
 export function PositionTable({
@@ -9,6 +10,7 @@ export function PositionTable({
   pool: PoolResponse;
   data: PositionsResponse;
 }) {
+  const router = useRouter();
   const dx = pool.pool.tokenX.decimals;
   const dy = pool.pool.tokenY.decimals;
 
@@ -33,6 +35,7 @@ export function PositionTable({
             <th className="p-3">USDC</th>
             <th className="p-3">Unclaimed fees</th>
             <th className="p-3">In range</th>
+            <th className="p-3"></th>
           </tr>
         </thead>
         <tbody>
@@ -42,7 +45,11 @@ export function PositionTable({
               data.activeBinId >= p.lowerBinId &&
               data.activeBinId <= p.upperBinId;
             return (
-              <tr key={p.publicKey} className="border-b border-neutral-900">
+              <tr
+                key={p.publicKey}
+                onClick={() => router.push(`/positions/${p.publicKey}`)}
+                className="cursor-pointer border-b border-neutral-900 hover:bg-neutral-900"
+              >
                 <td className="p-3 font-mono text-xs">
                   {p.publicKey.slice(0, 4)}…{p.publicKey.slice(-4)}
                 </td>
@@ -68,6 +75,9 @@ export function PositionTable({
                   >
                     {inRange ? "yes" : "no"}
                   </span>
+                </td>
+                <td className="p-3 text-right text-neutral-500">
+                  Manage →
                 </td>
               </tr>
             );

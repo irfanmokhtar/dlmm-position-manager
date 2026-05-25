@@ -4,11 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { PoolHeader } from "@/components/PoolHeader";
 import { BinChart } from "@/components/BinChart";
 import { PositionTable } from "@/components/PositionTable";
-import { PositionChart } from "@/components/PositionChart";
 import { AddLiquidityPanel } from "@/components/AddLiquidityPanel";
-import { RemovePanel } from "@/components/RemovePanel";
-import { ResizePanel } from "@/components/ResizePanel";
-import { RebalancePanel } from "@/components/RebalancePanel";
 import { ClaimBar } from "@/components/ClaimBar";
 import { SwapPanel } from "@/components/SwapPanel";
 import { WalletSelector } from "@/components/WalletSelector";
@@ -85,6 +81,8 @@ export default function Dashboard() {
           <PoolHeader data={pool} />
           <BinChart pool={pool} positions={positions ?? undefined} />
 
+          {positions && <PositionTable pool={pool} data={positions} />}
+
           <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <SwapPanel onDone={load} />
             <ClaimBar onDone={load} />
@@ -93,29 +91,7 @@ export default function Dashboard() {
               positions={positions?.positions ?? []}
               onDone={load}
             />
-            <RemovePanel positions={positions?.positions ?? []} onDone={load} />
-            <ResizePanel positions={positions?.positions ?? []} onDone={load} />
-            <RebalancePanel positions={positions?.positions ?? []} onDone={load} />
           </section>
-
-          {positions && <PositionTable pool={pool} data={positions} />}
-          {positions && positions.positions.length > 0 && (
-            <section>
-              <h3 className="mb-3 text-sm font-semibold text-neutral-300">
-                Per-position liquidity ({positions.positions.length})
-              </h3>
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                {positions.positions.map((p) => (
-                  <PositionChart
-                    key={p.publicKey}
-                    pool={pool}
-                    position={p}
-                    activeBinId={positions.activeBinId}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
         </div>
       )}
 
