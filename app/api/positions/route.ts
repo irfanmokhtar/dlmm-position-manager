@@ -5,10 +5,11 @@ import { serialize } from "@/lib/serialize";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const dlmm = await getDlmm();
-    const owner = getWalletPublicKey();
+    const wallet = new URL(req.url).searchParams.get("wallet") ?? undefined;
+    const owner = getWalletPublicKey(wallet);
     const { activeBin, userPositions } =
       await dlmm.getPositionsByUserAndLbPair(owner);
 

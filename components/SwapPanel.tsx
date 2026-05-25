@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { postJson } from "@/lib/client";
+import { useWallet } from "@/lib/wallet-context";
 import { TOKENS } from "@/lib/constants";
 
 const input =
@@ -15,6 +16,7 @@ interface QuoteResp {
 }
 
 export function SwapPanel({ onDone }: { onDone: () => void }) {
+  const { selected } = useWallet();
   const [dir, setDir] = useState<"SOLtoUSDC" | "USDCtoSOL">("SOLtoUSDC");
   const [amount, setAmount] = useState("0.1");
   const [slippageBps, setSlippageBps] = useState(50);
@@ -53,7 +55,7 @@ export function SwapPanel({ onDone }: { onDone: () => void }) {
     try {
       const r = await postJson<{ ok: boolean; signature?: string; error?: string }>(
         "/api/swap/execute",
-        { quoteResponse: quote.quote },
+        { quoteResponse: quote.quote, wallet: selected || undefined },
       );
       setMsg(
         r.ok && r.signature

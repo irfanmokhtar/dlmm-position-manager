@@ -5,9 +5,10 @@ import { env } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const wallet = getWalletPublicKey().toBase58();
+    const walletId = new URL(req.url).searchParams.get("wallet") ?? undefined;
+    const wallet = getWalletPublicKey(walletId).toBase58();
     const [pnl, portfolioOpen, portfolioTotal] = await Promise.allSettled([
       meteoraApi.positionPnl(env.POOL_ADDRESS),
       meteoraApi.portfolioOpen(wallet),

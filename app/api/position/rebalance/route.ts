@@ -4,7 +4,7 @@ import BN from "bn.js";
 import { z } from "zod";
 import { StrategyType } from "@meteora-ag/dlmm";
 import { getDlmm } from "@/lib/dlmm";
-import { getWalletPublicKey } from "@/lib/solana";
+import { getWallet } from "@/lib/solana";
 import { instructionsToTxs, previewTransactions, sendTransactions } from "@/lib/tx";
 import { toRaw } from "@/lib/amount";
 
@@ -25,6 +25,7 @@ const Body = z.object({
   withdrawYBps: z.number().int().min(0).max(10000).default(10000),
   maxActiveBinSlippage: z.number().int().min(0).default(5),
   slippage: z.number().optional(),
+  wallet: z.string().optional(),
   dryRun: z.boolean().default(true),
 });
 
@@ -32,7 +33,8 @@ export async function POST(req: Request) {
   try {
     const body = Body.parse(await req.json());
     const dlmm = await getDlmm();
-    const owner = getWalletPublicKey();
+    const wallet = getWallet(body.wallet);
+    const owner = wallet.publicKey;
     const position = new PublicKey(body.positionPubKey);
     const dx = dlmm.tokenX.mint.decimals;
     const dy = dlmm.tokenY.mint.decimals;
@@ -74,11 +76,11 @@ export async function POST(req: Request) {
     };
 
     if (body.dryRun) {
-      const preview = await previewTransactions(txs);
+      const preview = await previewTransactions(txs, wallet);
       return NextResponse.json({ dryRun: true, summary, preview });
     }
 
-    const results = await sendTransactions(txs);
+    const results = await sendTransactions(txs, wallet);
     const ok = results.every((r) => r.ok) && results.length > 0;
     return NextResponse.json({ dryRun: false, ok, summary, results });
   } catch (e) {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PositionInfo } from "@/lib/types";
 import { ActionResponse, postJson } from "@/lib/client";
+import { useWallet } from "@/lib/wallet-context";
 import { ActionResult } from "./ActionResult";
 
 const input =
@@ -16,6 +17,7 @@ export function RemovePanel({
   positions: PositionInfo[];
   onDone: () => void;
 }) {
+  const { selected } = useWallet();
   const [target, setTarget] = useState(positions[0]?.publicKey ?? "");
   const [fromBinId, setFromBinId] = useState(0);
   const [toBinId, setToBinId] = useState(0);
@@ -41,6 +43,7 @@ export function RemovePanel({
     try {
       const r = await postJson<ActionResponse>("/api/liquidity/remove", {
         dryRun,
+        wallet: selected || undefined,
         positionPubKey: target,
         fromBinId,
         toBinId,

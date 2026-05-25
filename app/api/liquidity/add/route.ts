@@ -8,7 +8,7 @@ import {
   getLiquidityStrategyParameterBuilder,
 } from "@meteora-ag/dlmm";
 import { getDlmm } from "@/lib/dlmm";
-import { getWalletPublicKey } from "@/lib/solana";
+import { getWallet } from "@/lib/solana";
 import { previewTransactions, sendTransactions } from "@/lib/tx";
 import { buildBlendedDistribution, presetStrategy, STRATEGY_TYPE } from "@/lib/strategies";
 import { toRaw } from "@/lib/amount";
@@ -23,6 +23,7 @@ const Body = z.object({
   xAmount: z.string().default("0"), // human units (SOL)
   yAmount: z.string().default("0"), // human units (USDC)
   slippage: z.number().optional(),
+  wallet: z.string().optional(),
   dryRun: z.boolean().default(true),
   strategy: z.discriminatedUnion("type", [
     z.object({
@@ -62,7 +63,8 @@ export async function POST(req: Request) {
     }
 
     const dlmm = await getDlmm();
-    const user = getWalletPublicKey();
+    const wallet = getWallet(body.wallet);
+    const user = wallet.publicKey;
     const activeBinId = (await dlmm.getActiveBin()).binId;
     const dx = dlmm.tokenX.mint.decimals;
     const dy = dlmm.tokenY.mint.decimals;
@@ -174,11 +176,11 @@ export async function POST(req: Request) {
     const extraSigners = positionKp ? [positionKp] : [];
 
     if (body.dryRun) {
-      const preview = await previewTransactions(txs, extraSigners);
+      const preview = await previewTransactions(txs, wallet, extraSigners);
       return NextResponse.json({ dryRun: true, positionPubKey: positionPubKey.toBase58(), preview });
     }
 
-    const results = await sendTransactions(txs, extraSigners);
+    const results = await sendTransactions(txs, wallet, extraSigners);
     const ok = results.every((r) => r.ok) && results.length > 0;
     return NextResponse.json({ dryRun: false, ok, positionPubKey: positionPubKey.toBase58(), results });
   } catch (e) {

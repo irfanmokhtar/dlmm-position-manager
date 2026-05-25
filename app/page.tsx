@@ -11,6 +11,8 @@ import { ResizePanel } from "@/components/ResizePanel";
 import { RebalancePanel } from "@/components/RebalancePanel";
 import { ClaimBar } from "@/components/ClaimBar";
 import { SwapPanel } from "@/components/SwapPanel";
+import { WalletSelector } from "@/components/WalletSelector";
+import { useWallet } from "@/lib/wallet-context";
 import { PoolResponse, PositionsResponse } from "@/lib/types";
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -21,6 +23,7 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 export default function Dashboard() {
+  const { selected } = useWallet();
   const [pool, setPool] = useState<PoolResponse | null>(null);
   const [positions, setPositions] = useState<PositionsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -30,9 +33,12 @@ export default function Dashboard() {
     setLoading(true);
     setError(null);
     try {
+      const posUrl = selected
+        ? `/api/positions?wallet=${selected}`
+        : "/api/positions";
       const [p, pos] = await Promise.all([
         fetchJson<PoolResponse>("/api/pool"),
-        fetchJson<PositionsResponse>("/api/positions"),
+        fetchJson<PositionsResponse>(posUrl),
       ]);
       setPool(p);
       setPositions(pos);
@@ -41,7 +47,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selected]);
 
   useEffect(() => {
     load();
@@ -51,13 +57,16 @@ export default function Dashboard() {
     <main className="mx-auto min-h-screen max-w-6xl bg-black px-4 py-8 text-neutral-100">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">DLMM Position Manager</h1>
-        <button
-          onClick={load}
-          disabled={loading}
-          className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-900 disabled:opacity-50"
-        >
-          {loading ? "Loading…" : "Refresh"}
-        </button>
+        <div className="flex items-center gap-2">
+          <WalletSelector />
+          <button
+            onClick={load}
+            disabled={loading}
+            className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-900 disabled:opacity-50"
+          >
+            {loading ? "Loading…" : "Refresh"}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -65,8 +74,8 @@ export default function Dashboard() {
           <p className="font-semibold">Failed to load.</p>
           <p className="mt-1 font-mono text-xs">{error}</p>
           <p className="mt-2 text-red-400/80">
-            Check that <code>RPC_URL</code> and <code>WALLET_SECRET</code> are
-            set in <code>.env.local</code>.
+            Check that <code>RPC_URL</code> and <code>WALLETS</code> (or legacy{" "}
+            <code>WALLET_SECRET</code>) are set in <code>.env.local</code>.
           </p>
         </div>
       )}

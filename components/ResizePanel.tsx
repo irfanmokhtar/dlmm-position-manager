@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PositionInfo } from "@/lib/types";
 import { ActionResponse, postJson } from "@/lib/client";
+import { useWallet } from "@/lib/wallet-context";
 import { ActionResult } from "./ActionResult";
 
 const input =
@@ -16,6 +17,7 @@ export function ResizePanel({
   positions: PositionInfo[];
   onDone: () => void;
 }) {
+  const { selected } = useWallet();
   const [target, setTarget] = useState(positions[0]?.publicKey ?? "");
   const [action, setAction] = useState<"increase" | "decrease">("increase");
   const [side, setSide] = useState<"Lower" | "Upper">("Upper");
@@ -38,6 +40,7 @@ export function ResizePanel({
     try {
       const r = await postJson<ActionResponse>("/api/position/resize", {
         dryRun,
+        wallet: selected || undefined,
         positionPubKey: target,
         action,
         side,

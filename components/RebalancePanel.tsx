@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PositionInfo } from "@/lib/types";
 import { ActionResponse, postJson } from "@/lib/client";
+import { useWallet } from "@/lib/wallet-context";
 import { ActionResult } from "./ActionResult";
 
 const input =
@@ -16,6 +17,7 @@ export function RebalancePanel({
   positions: PositionInfo[];
   onDone: () => void;
 }) {
+  const { selected } = useWallet();
   const [target, setTarget] = useState(positions[0]?.publicKey ?? "");
   const [strategy, setStrategy] = useState<"Spot" | "Curve" | "BidAsk">("Spot");
   const [withdrawXBps, setWithdrawXBps] = useState(10000);
@@ -38,6 +40,7 @@ export function RebalancePanel({
     try {
       const r = await postJson<ActionResponse>("/api/position/rebalance", {
         dryRun,
+        wallet: selected || undefined,
         positionPubKey: target,
         strategy,
         withdrawXBps,

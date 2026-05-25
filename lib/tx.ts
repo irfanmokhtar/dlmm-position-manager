@@ -1,7 +1,7 @@
 // Server-side transaction processing: simulate, sign with the local keypair
 // (only the signers each tx actually requires), and send sequentially.
 import { Keypair, Transaction, TransactionInstruction } from "@solana/web3.js";
-import { getConnection, getWallet } from "./solana";
+import { getConnection } from "./solana";
 
 if (typeof window !== "undefined") {
   throw new Error("lib/tx.ts must never be imported on the client");
@@ -79,10 +79,11 @@ async function prepare(tx: Transaction, signers: Keypair[]) {
  */
 export async function previewTransactions(
   input: Transaction | Transaction[],
+  wallet: Keypair,
   extraSigners: Keypair[] = [],
 ): Promise<PreviewResult> {
   const connection = getConnection();
-  const signers = [getWallet(), ...extraSigners];
+  const signers = [wallet, ...extraSigners];
   const txs = asArray(input);
   if (txs.length === 0) return { txCount: 0, ok: false, error: "no transactions" };
 
@@ -111,10 +112,11 @@ export async function previewTransactions(
  */
 export async function sendTransactions(
   input: Transaction | Transaction[],
+  wallet: Keypair,
   extraSigners: Keypair[] = [],
 ): Promise<TxStepResult[]> {
   const connection = getConnection();
-  const signers = [getWallet(), ...extraSigners];
+  const signers = [wallet, ...extraSigners];
   const txs = asArray(input);
   const results: TxStepResult[] = [];
 

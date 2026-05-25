@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { ActionResponse, postJson } from "@/lib/client";
+import { useWallet } from "@/lib/wallet-context";
 import { ActionResult } from "./ActionResult";
 
 export function ClaimBar({ onDone }: { onDone: () => void }) {
+  const { selected } = useWallet();
   const [type, setType] = useState<"fees" | "all">("fees");
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<ActionResponse | null>(null);
@@ -14,7 +16,11 @@ export function ClaimBar({ onDone }: { onDone: () => void }) {
     setBusy(true);
     setRes(null);
     try {
-      const r = await postJson<ActionResponse>("/api/claim", { type, dryRun });
+      const r = await postJson<ActionResponse>("/api/claim", {
+        type,
+        dryRun,
+        wallet: selected || undefined,
+      });
       setRes(r);
       if (dryRun) setPreviewOk(Boolean(r.preview?.ok));
       else {

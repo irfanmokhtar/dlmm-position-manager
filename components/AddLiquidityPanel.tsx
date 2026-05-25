@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PoolResponse, PositionInfo } from "@/lib/types";
 import { ActionResponse, postJson } from "@/lib/client";
+import { useWallet } from "@/lib/wallet-context";
 import { priceToBinId } from "@/lib/binmath";
 import { MAX_POSITION_BINS } from "@/lib/constants";
 import { ActionResult } from "./ActionResult";
@@ -20,6 +21,7 @@ export function AddLiquidityPanel({
   positions: PositionInfo[];
   onDone: () => void;
 }) {
+  const { selected } = useWallet();
   const active = pool.activeBin.binId;
   const activePrice = Number(pool.activeBin.pricePerToken);
   const binStep = pool.pool.binStep;
@@ -77,6 +79,7 @@ export function AddLiquidityPanel({
   function payload(dryRun: boolean) {
     return {
       dryRun,
+      wallet: selected || undefined,
       positionPubKey: target || undefined,
       minBinId,
       maxBinId,

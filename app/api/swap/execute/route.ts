@@ -8,12 +8,13 @@ export const dynamic = "force-dynamic";
 
 const Body = z.object({
   quoteResponse: z.record(z.string(), z.unknown()),
+  wallet: z.string().optional(),
 });
 
 export async function POST(req: Request) {
   try {
     const body = Body.parse(await req.json());
-    const wallet = getWallet();
+    const wallet = getWallet(body.wallet);
     const connection = getConnection();
 
     const swapB64 = await getSwapTransaction(
