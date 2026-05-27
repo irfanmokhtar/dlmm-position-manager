@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { PoolResponse, PositionInfo, PositionsResponse, toUi } from "@/lib/types";
 import { AddLiquidityPanel } from "@/components/AddLiquidityPanel";
 import { RemovePanel } from "@/components/RemovePanel";
@@ -36,6 +37,7 @@ export function PositionRail({
   onDone: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("add");
+  const router = useRouter();
   const dx = pool.pool.tokenX.decimals;
   const dy = pool.pool.tokenY.decimals;
   const price = Number(pool.activeBin.pricePerToken);
@@ -93,6 +95,14 @@ export function PositionRail({
           {inRange ? <Pill kind="in" dot="pulse">in range</Pill> : <Pill kind="out">out</Pill>}
         </div>
         <div style={{ display: "flex", gap: 6 }}>
+          <button
+            className="btn btn-sm btn-ghost btn-icon"
+            aria-label="Open full page"
+            title="Open full position page"
+            onClick={() => router.push(`/positions/${selected.publicKey}`)}
+          >
+            {I.expand}
+          </button>
           <a className="btn btn-sm btn-ghost btn-icon" href={`https://solscan.io/account/${selected.publicKey}`} target="_blank" rel="noreferrer" aria-label="Solscan">
             {I.ext}
           </a>
