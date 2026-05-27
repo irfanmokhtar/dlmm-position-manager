@@ -7,7 +7,8 @@ export function WalletSelector() {
   if (wallets.length === 0) return null;
   return (
     <select
-      className="rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm"
+      className="input"
+      style={{ width: "auto" }}
       value={selected}
       onChange={(e) => setSelected(e.target.value)}
       title="Active wallet"

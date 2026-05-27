@@ -4,11 +4,10 @@ import { useEffect, useState } from "react";
 import { PositionInfo } from "@/lib/types";
 import { ActionResponse, postJson } from "@/lib/client";
 import { useWallet } from "@/lib/wallet-context";
+import { I, PanelCard, Seg, Field, sx } from "@/components/strata/ui";
 import { ActionResult } from "./ActionResult";
 
-const input =
-  "w-full rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm";
-const label = "text-xs uppercase tracking-wide text-neutral-500";
+const grid2 = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } as const;
 
 export function RebalancePanel({
   positions,
@@ -20,9 +19,7 @@ export function RebalancePanel({
   lockedPosition?: PositionInfo;
 }) {
   const { selected } = useWallet();
-  const [target, setTarget] = useState(
-    lockedPosition?.publicKey ?? positions[0]?.publicKey ?? "",
-  );
+  const [target, setTarget] = useState(lockedPosition?.publicKey ?? positions[0]?.publicKey ?? "");
   const [strategy, setStrategy] = useState<"Spot" | "Curve" | "BidAsk">("Spot");
   const [withdrawXBps, setWithdrawXBps] = useState(10000);
   const [withdrawYBps, setWithdrawYBps] = useState(10000);
@@ -67,124 +64,71 @@ export function RebalancePanel({
   }
 
   function execute() {
-    if (
-      confirm(
-        "Rebalance? This withdraws (per the % below) and redeposits across a recentered range.",
-      )
-    )
-      run(false);
+    if (confirm("Rebalance? This withdraws (per the % below) and redeposits across a recentered range.")) run(false);
   }
 
   if (positions.length === 0) {
     return (
-      <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-sm text-neutral-500">
-        No positions to rebalance.
-      </div>
+      <PanelCard icon={I.target} title="Rebalance · recenter" accent="var(--accent-1)">
+        <div style={{ fontSize: "var(--text-sm)", color: "var(--text-3)" }}>No positions to rebalance.</div>
+      </PanelCard>
     );
   }
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-      <h3 className="mb-3 text-sm font-semibold">Rebalance (recenter)</h3>
-
-      <div className="grid grid-cols-2 gap-3">
-        {!lockedPosition && (
-          <div className="col-span-2">
-            <span className={label}>Position</span>
-            <select
-              className={input}
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-            >
-              {positions.map((p) => (
-                <option key={p.publicKey} value={p.publicKey}>
-                  {p.publicKey.slice(0, 6)}… ({p.lowerBinId}–{p.upperBinId})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
+    <PanelCard icon={I.target} title="Rebalance · recenter" accent="var(--accent-1)">
+      {!lockedPosition && (
         <div>
-          <span className={label}>Shape</span>
-          <select
-            className={input}
-            value={strategy}
-            onChange={(e) => setStrategy(e.target.value as typeof strategy)}
-          >
-            <option value="Spot">Spot</option>
-            <option value="Curve">Curve</option>
-            <option value="BidAsk">BidAsk</option>
+          <div className={sx.label} style={{ marginBottom: 6 }}>Position</div>
+          <select className={sx.inputText} value={target} onChange={(e) => setTarget(e.target.value)}>
+            {positions.map((p) => (
+              <option key={p.publicKey} value={p.publicKey}>
+                {p.publicKey.slice(0, 6)}… ({p.lowerBinId}–{p.upperBinId})
+              </option>
+            ))}
           </select>
         </div>
-        <div>
-          <span className={label}>Active-bin slippage</span>
-          <input
-            type="number"
-            className={input}
-            value={slip}
-            onChange={(e) => setSlip(e.target.value)}
-          />
-        </div>
+      )}
 
-        <div>
-          <span className={label}>Withdraw SOL {(withdrawXBps / 100).toFixed(0)}%</span>
-          <input
-            type="range"
-            min={0}
-            max={10000}
-            value={withdrawXBps}
-            onChange={(e) => setWithdrawXBps(Number(e.target.value))}
-            className="w-full"
-          />
-        </div>
-        <div>
-          <span className={label}>Withdraw USDC {(withdrawYBps / 100).toFixed(0)}%</span>
-          <input
-            type="range"
-            min={0}
-            max={10000}
-            value={withdrawYBps}
-            onChange={(e) => setWithdrawYBps(Number(e.target.value))}
-            className="w-full"
-          />
-        </div>
+      <Seg value={strategy} options={[["Spot", "Spot"], ["Curve", "Curve"], ["BidAsk", "Bid-Ask"]]} onChange={setStrategy} />
 
-        <div>
-          <span className={label}>Top-up SOL</span>
-          <input className={input} value={topUpX} onChange={(e) => setTopUpX(e.target.value)} />
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+          <div className={sx.label}>Withdraw SOL</div>
+          <span className="mono num" style={{ fontWeight: 600 }}>{(withdrawXBps / 100).toFixed(0)}%</span>
         </div>
-        <div>
-          <span className={label}>Top-up USDC</span>
-          <input className={input} value={topUpY} onChange={(e) => setTopUpY(e.target.value)} />
+        <input type="range" min={0} max={10000} value={withdrawXBps} onChange={(e) => setWithdrawXBps(Number(e.target.value))} />
+      </div>
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+          <div className={sx.label}>Withdraw USDC</div>
+          <span className="mono num" style={{ fontWeight: 600 }}>{(withdrawYBps / 100).toFixed(0)}%</span>
         </div>
+        <input type="range" min={0} max={10000} value={withdrawYBps} onChange={(e) => setWithdrawYBps(Number(e.target.value))} />
+      </div>
+
+      <div style={grid2}>
+        <Field label="Top-up SOL" value={topUpX} suffix="SOL" onChange={setTopUpX} />
+        <Field label="Top-up USDC" value={topUpY} suffix="USDC" onChange={setTopUpY} />
+        <Field label="Active-bin slippage" value={slip} type="number" onChange={setSlip} />
       </div>
 
       {res?.summary && (
-        <p className="mt-2 text-xs text-neutral-500">
-          {res.summary.txCount} tx · {res.summary.initBinArrayIxs} bin-array init ·{" "}
-          {res.summary.rebalanceIxs} rebalance ix
-        </p>
+        <div style={{ fontSize: "var(--text-xs)", color: "var(--text-3)" }}>
+          {res.summary.txCount} tx · {res.summary.initBinArrayIxs} bin-array init · {res.summary.rebalanceIxs} rebalance ix
+        </div>
       )}
 
-      <div className="mt-3 flex gap-2">
-        <button
-          disabled={busy}
-          onClick={() => run(true)}
-          className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-900 disabled:opacity-50"
-        >
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="btn btn-ghost" style={{ flex: 1 }} disabled={busy} onClick={() => run(true)}>
           {busy ? "…" : "Preview (simulate)"}
         </button>
-        <button
-          disabled={busy || !previewOk}
-          onClick={execute}
-          className="rounded-lg bg-purple-700 px-3 py-1.5 text-sm hover:bg-purple-600 disabled:opacity-40"
-        >
-          Execute
+        <button className="btn btn-primary" style={{ flex: 1 }} disabled={busy || !previewOk} onClick={execute}>
+          {I.target} Rebalance
         </button>
       </div>
 
       <ActionResult res={res} />
-    </div>
+    </PanelCard>
   );
 }

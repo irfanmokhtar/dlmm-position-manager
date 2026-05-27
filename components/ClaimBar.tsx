@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ActionResponse, postJson } from "@/lib/client";
 import { useWallet } from "@/lib/wallet-context";
+import { I, sx } from "@/components/strata/ui";
 import { ActionResult } from "./ActionResult";
 
 export function ClaimBar({ onDone }: { onDone: () => void }) {
@@ -35,33 +36,24 @@ export function ClaimBar({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-      <h3 className="mb-3 text-sm font-semibold">Claim</h3>
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          className="rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm"
-          value={type}
-          onChange={(e) => {
-            setType(e.target.value as typeof type);
-            setPreviewOk(false);
-          }}
-        >
-          <option value="fees">Swap fees</option>
-          <option value="all">Fees + LM rewards</option>
-        </select>
-        <button
-          disabled={busy}
-          onClick={() => run(true)}
-          className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-900 disabled:opacity-50"
-        >
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <select
+        className={sx.inputText}
+        value={type}
+        onChange={(e) => {
+          setType(e.target.value as typeof type);
+          setPreviewOk(false);
+        }}
+      >
+        <option value="fees">Swap fees</option>
+        <option value="all">Fees + LM rewards</option>
+      </select>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="btn btn-ghost" style={{ flex: 1 }} disabled={busy} onClick={() => run(true)}>
           {busy ? "…" : "Preview"}
         </button>
-        <button
-          disabled={busy || !previewOk}
-          onClick={() => run(false)}
-          className="rounded-lg bg-emerald-700 px-3 py-1.5 text-sm hover:bg-emerald-600 disabled:opacity-40"
-        >
-          Claim
+        <button className="btn btn-primary" style={{ flex: 1 }} disabled={busy || !previewOk} onClick={() => run(false)}>
+          {I.bolt} Claim all
         </button>
       </div>
       <ActionResult res={res} />
