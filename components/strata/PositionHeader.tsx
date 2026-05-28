@@ -2,7 +2,7 @@
 
 // Layout A position header: breadcrumb + actions + 6-stat row.
 // Mirrors the design bundle's PositionHeader (project/position-detail.jsx) but
-// wired to real data. APR/Age come from the Meteora data API (pnl prop).
+// wired to real data. PnL/Age come from the Meteora data API (pnl prop).
 import { PoolResponse, PositionInfo, PositionPnL, toUi } from "@/lib/types";
 import { I, Pill, Stat, TokenPair, shortKey, fmtUsd } from "./ui";
 
@@ -50,7 +50,10 @@ export function PositionHeader({
   const hiPrice = priceAt(position.upperBinId);
   const rangePct = price > 0 ? ((hiPrice - loPrice) / (2 * price)) * 100 : 0;
 
-  const apr = pnl ? Number(pnl.feePerTvl24h) * 365 * 100 : null;
+  const pnlUsd = pnl ? Number(pnl.pnlUsd) : null;
+  const pnlUsdPct = pnl ? Number(pnl.pnlPctChange) : null;
+  const pnlSol = pnl?.pnlSol != null ? Number(pnl.pnlSol) : null;
+  const pnlSolPct = pnl?.pnlSolPctChange != null ? Number(pnl.pnlSolPctChange) : null;
   const age = pnl ? humanizeAge(pnl.createdAt) : "—";
 
   function share() {
@@ -85,7 +88,25 @@ export function PositionHeader({
         <Stat label="Range" value={`${position.lowerBinId}–${position.upperBinId}`} sub={`${width} bins · ±${rangePct.toFixed(2)}%`} />
         <Stat label="Price band" value={`$${loPrice.toFixed(2)}–$${hiPrice.toFixed(2)}`} />
         <Stat label="Unclaimed fees" value={`$${feeUsd.toFixed(2)}`} accent="var(--success)" sub={`${toUi(position.feeX, dx).toFixed(4)} SOL · ${toUi(position.feeY, dy).toFixed(2)} USDC`} />
-        <Stat label="Realised APR" value={apr === null ? "—" : `${apr.toFixed(1)}%`} sub="trailing 24h" />
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div className="label">PnL</div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <div className="mono num" style={{ fontSize: "var(--text-stat)", fontWeight: 600, lineHeight: 1.1, color: pnlUsd !== null ? (pnlUsd >= 0 ? "var(--success)" : "var(--danger)") : "var(--text-1)" }}>
+                {pnlUsd === null ? "—" : fmtUsd(pnlUsd, { dec: 2 })}
+              </div>
+              {pnlUsdPct !== null && <div style={{ fontSize: "var(--text-xs)", color: pnlUsdPct >= 0 ? "var(--success)" : "var(--danger)" }}>{pnlUsdPct >= 0 ? "+" : ""}{pnlUsdPct.toFixed(2)}%</div>}
+            </div>
+            <div style={{ width: 1, alignSelf: "stretch", background: "var(--border)", flexShrink: 0 }} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <div className="mono num" style={{ fontSize: "var(--text-stat)", fontWeight: 600, lineHeight: 1.1, color: pnlSol !== null ? (pnlSol >= 0 ? "var(--success)" : "var(--danger)") : "var(--text-1)" }}>
+                {pnlSol === null ? "—" : `${pnlSol >= 0 ? "+" : ""}${pnlSol.toFixed(4)}`}
+              </div>
+              {pnlSolPct !== null && <div style={{ fontSize: "var(--text-xs)", color: pnlSolPct >= 0 ? "var(--success)" : "var(--danger)" }}>{pnlSolPct >= 0 ? "+" : ""}{pnlSolPct.toFixed(2)}%</div>}
+            </div>
+          </div>
+          <div style={{ fontSize: "var(--text-xs)", color: "var(--text-3)" }}>USD · SOL · since open</div>
+        </div>
         <Stat label="Age" value={age} sub="since open" />
       </div>
     </div>

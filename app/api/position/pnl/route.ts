@@ -1,18 +1,20 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { meteoraApi, type PositionPnLData } from "@/lib/meteora-api";
 import { env } from "@/lib/env";
+import { getWalletPublicKey } from "@/lib/solana";
 import type { PositionPnL, PositionPnLResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 // Per-position analytics (APR proxy + age) sourced from the Meteora data API.
 // The on-chain SDK has no PnL/age, so this is a separate read path — see
-// lib/meteora-api.ts. Response is plain JSON strings (no BN/PublicKey), so no
-// serialize() is needed.
-export async function GET() {
+// lib/meteora-api.ts. The upstream endpoint requires a `user` query param;
+// resolve via the same wallet selector used by /api/positions.
+export async function GET(req: NextRequest) {
   try {
-    const raw = await meteoraApi.positionPnl(env.POOL_ADDRESS);
-    // The endpoint returns { positions: [...] }; tolerate a bare array too.
+    const walletParam = new URL(req.url).searchParams.get("wallet") ?? undefined;
+    const user = getWalletPublicKey(walletParam).toBase58();
+    const raw = await meteoraApi.positionPnl(env.POOL_ADDRESS, user);
     const list: PositionPnLData[] = Array.isArray(raw)
       ? (raw as PositionPnLData[])
       : (raw?.positions ?? []);
@@ -22,7 +24,9 @@ export async function GET() {
       createdAt: Number(p.createdAt),
       isClosed: Boolean(p.isClosed),
       pnlUsd: String(p.pnlUsd ?? "0"),
+      pnlSol: p.pnlSol != null ? String(p.pnlSol) : null,
       pnlPctChange: String(p.pnlPctChange ?? "0"),
+      pnlSolPctChange: p.pnlSolPctChange != null ? String(p.pnlSolPctChange) : null,
       feePerTvl24h: String(p.feePerTvl24h ?? "0"),
     }));
 

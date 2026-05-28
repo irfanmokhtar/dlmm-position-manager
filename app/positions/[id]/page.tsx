@@ -87,7 +87,8 @@ export default function PositionPage() {
       setPool(p);
       setPositions(pos);
       // PnL is best-effort — never block the page on the data API.
-      fetchJson<PositionPnLResponse>("/api/position/pnl")
+      const pnlUrl = selected ? `/api/position/pnl?wallet=${selected}` : "/api/position/pnl";
+      fetchJson<PositionPnLResponse>(pnlUrl)
         .then((r) => setPnl(r.positions.find((x) => x.positionAddress === id) ?? null))
         .catch(() => setPnl(null));
     } catch (e) {

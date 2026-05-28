@@ -61,12 +61,25 @@ export interface PositionPnL {
   createdAt: number; // unix seconds when the position was opened
   isClosed: boolean;
   pnlUsd: string;
+  pnlSol: string | null;
   pnlPctChange: string;
+  pnlSolPctChange: string | null;
   feePerTvl24h: string; // fee earned / TVL over a rolling 24h window
 }
 
 export interface PositionPnLResponse {
   positions: PositionPnL[];
+}
+
+// Lifetime claimed fees + LM rewards for the active wallet in this pool.
+// Sourced from Meteora data API `/wallets/{w}/pools/{p}/total_claims`.
+export interface WalletTotalClaimsResponse {
+  totalClaimsUsd: string;
+  totalClaimsSol: string;
+  feeClaimCount: number;
+  rewardClaimCount: number;
+  lastFeeClaimTime?: string | null;
+  lastRewardClaimTime?: string | null;
 }
 
 // raw amount string -> human number using token decimals

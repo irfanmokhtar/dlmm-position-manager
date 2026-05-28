@@ -36,7 +36,9 @@ export interface PositionPnLData {
   isClosed: boolean;
   closedAt?: number | null;
   pnlUsd: string;
+  pnlSol?: number | null;
   pnlPctChange: string;
+  pnlSolPctChange?: number | null;
   feePerTvl24h: string; // user's fee per tvl in rolling 24h
   lowerBinId: number;
   upperBinId: number;
@@ -48,14 +50,52 @@ export interface GetPoolPositionPnLResponse {
   [k: string]: unknown;
 }
 
+// `/wallets/{wallet}/pools/{pool_address}/total_claims` → GetWalletTotalClaimsResponse.
+// Lifetime claimed fees + LM rewards for a wallet in one pool. All numeric fields
+// are JSON strings to preserve precision.
+export interface WalletTotalClaims {
+  pool_address: string;
+  user_address: string;
+  total_fee_x: string;
+  total_fee_y: string;
+  total_fee_x_usd: string;
+  total_fee_y_usd: string;
+  total_fee_x_sol: string;
+  total_fee_y_sol: string;
+  fee_claim_count: number;
+  last_fee_claim_time?: string | null;
+  total_reward_x: string;
+  total_reward_y: string;
+  total_reward_x_usd: string;
+  total_reward_y_usd: string;
+  total_reward_x_sol: string;
+  total_reward_y_sol: string;
+  reward_claim_count: number;
+  last_reward_claim_time?: string | null;
+  total_claims_usd: string;
+  total_claims_sol: string;
+}
+
 export const meteoraApi = {
   pool: (address: string) => get<DataApiPool>(`/pools/${address}`),
 
   ohlcv: (address: string, timeframe = "1h") =>
     get<unknown>(`/pools/${address}/ohlcv`, { timeframe }),
 
-  positionPnl: (poolAddress: string) =>
-    get<GetPoolPositionPnLResponse>(`/positions/${poolAddress}/pnl`),
+  positionPnl: (
+    poolAddress: string,
+    user: string,
+    opts?: { status?: "open" | "closed" | "all"; page?: number; page_size?: number },
+  ) =>
+    get<GetPoolPositionPnLResponse>(`/positions/${poolAddress}/pnl`, {
+      user,
+      status: opts?.status ?? "all",
+      page: opts?.page ?? 1,
+      page_size: opts?.page_size ?? 100,
+    }),
+
+  totalClaims: (wallet: string, poolAddress: string) =>
+    get<WalletTotalClaims>(`/wallets/${wallet}/pools/${poolAddress}/total_claims`),
 
   portfolioOpen: (wallet: string) =>
     get<unknown>(`/portfolio/open`, { wallet }),
