@@ -4,25 +4,25 @@ import { useEffect, useState } from "react";
 import { PositionInfo } from "@/lib/types";
 import { ActionResponse, postJson } from "@/lib/client";
 import { useWallet } from "@/lib/wallet-context";
+import { I, PanelCard, Seg, Field, sx } from "@/components/strata/ui";
 import { ActionResult } from "./ActionResult";
 
-const input =
-  "w-full rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm";
-const label = "text-xs uppercase tracking-wide text-neutral-500";
+const grid2 = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } as const;
 
 export function ResizePanel({
   positions,
   onDone,
   lockedPosition,
+  draft,
 }: {
   positions: PositionInfo[];
   onDone: () => void;
   lockedPosition?: PositionInfo;
+  // chart-driven pre-fill from an edge-drag (resize) gesture
+  draft?: { side: "Lower" | "Upper"; action: "increase" | "decrease"; length: number; key: number };
 }) {
   const { selected } = useWallet();
-  const [target, setTarget] = useState(
-    lockedPosition?.publicKey ?? positions[0]?.publicKey ?? "",
-  );
+  const [target, setTarget] = useState(lockedPosition?.publicKey ?? positions[0]?.publicKey ?? "");
   const [action, setAction] = useState<"increase" | "decrease">("increase");
   const [side, setSide] = useState<"Lower" | "Upper">("Upper");
   const [length, setLength] = useState(10);
@@ -37,6 +37,15 @@ export function ResizePanel({
     setPreviewOk(false);
     setRes(null);
   }, [target, action, side, length]);
+
+  // apply a chart edge-drag (resize) gesture (keyed)
+  useEffect(() => {
+    if (!draft) return;
+    setSide(draft.side);
+    setAction(draft.action);
+    setLength(draft.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.key]);
 
   async function run(dryRun: boolean) {
     setBusy(true);
@@ -73,91 +82,70 @@ export function ResizePanel({
 
   if (positions.length === 0) {
     return (
-      <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-sm text-neutral-500">
-        No positions to resize.
-      </div>
+      <PanelCard icon={I.range} title="Resize width" accent="var(--accent-1)">
+        <div style={{ fontSize: "var(--text-sm)", color: "var(--text-3)" }}>No positions to resize.</div>
+      </PanelCard>
     );
   }
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-      <h3 className="mb-3 text-sm font-semibold">Resize width</h3>
-
-      <div className="grid grid-cols-2 gap-3">
-        {!lockedPosition && (
-          <div className="col-span-2">
-            <span className={label}>Position {pos ? `(${width} bins)` : ""}</span>
-            <select
-              className={input}
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-            >
-              {positions.map((p) => (
-                <option key={p.publicKey} value={p.publicKey}>
-                  {p.publicKey.slice(0, 6)}… ({p.lowerBinId}–{p.upperBinId})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
+    <PanelCard icon={I.range} title="Resize width" accent="var(--accent-1)">
+      {!lockedPosition && (
         <div>
-          <span className={label}>Action</span>
-          <select
-            className={input}
-            value={action}
-            onChange={(e) => setAction(e.target.value as typeof action)}
-          >
-            <option value="increase">Increase (widen)</option>
-            <option value="decrease">Decrease (narrow)</option>
+          <div className={sx.label} style={{ marginBottom: 6 }}>Position {pos ? `(${width} bins)` : ""}</div>
+          <select className={sx.inputText} value={target} onChange={(e) => setTarget(e.target.value)}>
+            {positions.map((p) => (
+              <option key={p.publicKey} value={p.publicKey}>
+                {p.publicKey.slice(0, 6)}… ({p.lowerBinId}–{p.upperBinId})
+              </option>
+            ))}
           </select>
         </div>
-        <div>
-          <span className={label}>Side</span>
-          <select
-            className={input}
-            value={side}
-            onChange={(e) => setSide(e.target.value as typeof side)}
-          >
-            <option value="Upper">Upper (price up)</option>
-            <option value="Lower">Lower (price down)</option>
-          </select>
-        </div>
+      )}
 
-        <div className="col-span-2">
-          <span className={label}>Bins to {action === "increase" ? "add" : "remove"}</span>
-          <input
-            type="number"
-            className={input}
-            value={length}
-            onChange={(e) => setLength(Number(e.target.value))}
-          />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className={sx.label}>Action</div>
+        <Seg value={action} options={[["increase", "Widen"], ["decrease", "Narrow"]]} onChange={setAction} />
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className={sx.label}>Side</div>
+        <Seg value={side} options={[["Upper", "Upper"], ["Lower", "Lower"]]} onChange={setSide} />
+      </div>
+
+      <div style={grid2}>
+        <Field label="Current width" value={`${width} bins`} mono={false} onChange={() => {}} />
+        <Field label={`Bins to ${action === "increase" ? "add" : "remove"}`} value={length} type="number" onChange={(v) => setLength(Number(v))} />
+      </div>
+
+      <div
+        style={{
+          background: "color-mix(in oklab, var(--warn) 10%, transparent)",
+          border: "1px solid color-mix(in oklab, var(--warn) 30%, transparent)",
+          borderRadius: 8,
+          padding: "8px 10px",
+          display: "flex",
+          gap: 8,
+          alignItems: "flex-start",
+          fontSize: "var(--text-xs)",
+        }}
+      >
+        <span style={{ color: "var(--warn)", marginTop: 1 }}>{I.warn}</span>
+        <div style={{ color: "var(--text-2)" }}>
+          <strong style={{ color: "var(--text-1)" }}>Heads-up.</strong> Widening only changes the range — seed new bins with Add.
+          Narrowing doesn&apos;t refund rent; only full <span className="mono">closePosition</span> does.
         </div>
       </div>
 
-      <p className="mt-2 text-xs text-neutral-500">
-        Widening only changes the range. Seed the new bins with the Add panel.
-        Decreasing does not refund rent until full close.
-      </p>
-
-      <div className="mt-3 flex gap-2">
-        <button
-          disabled={busy}
-          onClick={() => run(true)}
-          className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-900 disabled:opacity-50"
-        >
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="btn btn-ghost" style={{ flex: 1 }} disabled={busy} onClick={() => run(true)}>
           {busy ? "…" : "Preview"}
         </button>
-        <button
-          disabled={busy || !previewOk}
-          onClick={execute}
-          className="rounded-lg bg-sky-700 px-3 py-1.5 text-sm hover:bg-sky-600 disabled:opacity-40"
-        >
-          Execute
+        <button className="btn btn-primary" style={{ flex: 1 }} disabled={busy || !previewOk} onClick={execute}>
+          {I.range} Resize
         </button>
       </div>
 
       <ActionResult res={res} />
-    </div>
+    </PanelCard>
   );
 }

@@ -12,6 +12,8 @@ import {
 } from "recharts";
 import { PoolResponse, PositionsResponse, toUi } from "@/lib/types";
 
+// Pool-wide liquidity distribution. DLMM token split: bins below active are
+// USDC (token-y), bins above are SOL (token-x), the active bin is mixed.
 export function BinChart({
   pool,
   positions,
@@ -23,7 +25,6 @@ export function BinChart({
   const dy = pool.pool.tokenY.decimals;
   const activeId = pool.activeBin.binId;
 
-  // bins this wallet has liquidity in (for highlight)
   const ownedBins = new Set<number>();
   positions?.positions.forEach((p) => {
     for (let b = p.lowerBinId; b <= p.upperBinId; b++) ownedBins.add(b);
@@ -34,19 +35,30 @@ export function BinChart({
     const valueUsd = toUi(b.xAmount, dx) * price + toUi(b.yAmount, dy);
     return { binId: b.binId, valueUsd, price };
   });
-
   const priceById = new Map(chart.map((d) => [d.binId, d.price]));
 
+  const fillFor = (binId: number) =>
+    binId === activeId
+      ? "var(--active-bin)"
+      : binId < activeId
+        ? "var(--token-y)"
+        : "var(--token-x)";
+
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-5">
-      <h3 className="mb-3 text-sm font-semibold text-neutral-300">
-        Liquidity by bin (around active)
-      </h3>
-      <ResponsiveContainer width="100%" height={260}>
+    <div className="card" style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>Liquidity distribution</div>
+          <div style={{ color: "var(--text-3)", fontSize: "var(--text-xs)", marginTop: 2 }}>
+            Around active bin · {chart.length} bins shown
+          </div>
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={240}>
         <BarChart data={chart} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
           <XAxis
             dataKey="binId"
-            tick={{ fontSize: 9, fill: "#737373" }}
+            tick={{ fontSize: 9, fill: "var(--text-3)" }}
             interval={8}
             tickFormatter={(binId) => {
               const p = priceById.get(Number(binId));
@@ -54,48 +66,49 @@ export function BinChart({
             }}
           />
           <YAxis
-            tick={{ fontSize: 10, fill: "#737373" }}
+            tick={{ fontSize: 10, fill: "var(--text-3)" }}
             tickFormatter={(v) => `$${Math.round(Number(v))}`}
             width={48}
           />
           <Tooltip
+            cursor={{ fill: "var(--bg-2)" }}
             contentStyle={{
-              background: "#0a0a0a",
-              border: "1px solid #262626",
-              borderRadius: 8,
+              background: "var(--bg-1)",
+              border: "1px solid var(--border-2)",
+              borderRadius: 10,
               fontSize: 12,
-              color: "#e5e5e5",
+              color: "var(--text-1)",
             }}
-            labelStyle={{ color: "#e5e5e5" }}
-            itemStyle={{ color: "#e5e5e5" }}
+            labelStyle={{ color: "var(--text-1)" }}
+            itemStyle={{ color: "var(--text-1)" }}
             formatter={(v) => [`$${Number(v).toFixed(2)}`, "liquidity"]}
             labelFormatter={(l, payload) => {
-              const price = (payload?.[0] as { payload?: { price?: number } } | undefined)
-                ?.payload?.price;
+              const price = (payload?.[0] as { payload?: { price?: number } } | undefined)?.payload?.price;
               return price ? `bin ${l} · $${price.toFixed(4)}` : `bin ${l}`;
             }}
           />
-          <ReferenceLine x={activeId} stroke="#f59e0b" strokeDasharray="3 3" />
+          <ReferenceLine x={activeId} stroke="var(--active-bin)" strokeDasharray="3 3" />
           <Bar dataKey="valueUsd" radius={[2, 2, 0, 0]}>
             {chart.map((d) => (
               <Cell
                 key={d.binId}
-                fill={
-                  d.binId === activeId
-                    ? "#f59e0b"
-                    : ownedBins.has(d.binId)
-                      ? "#34d399"
-                      : "#3f3f46"
-                }
+                fill={fillFor(d.binId)}
+                fillOpacity={ownedBins.has(d.binId) || d.binId === activeId ? 1 : 0.32}
               />
             ))}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      <div className="mt-2 flex gap-4 text-xs text-neutral-500">
-        <span><span className="text-amber-500">▮</span> active bin</span>
-        <span><span className="text-emerald-400">▮</span> your liquidity</span>
-        <span><span className="text-neutral-600">▮</span> pool</span>
+      <div style={{ display: "flex", gap: 16, marginTop: 6, fontSize: "var(--text-xs)", color: "var(--text-3)" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span style={{ width: 8, height: 8, background: "var(--token-x)", borderRadius: 1 }} /> SOL bins (above active)
+        </span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span style={{ width: 8, height: 8, background: "var(--token-y)", borderRadius: 1 }} /> USDC bins (below active)
+        </span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
+          <span style={{ width: 8, height: 8, background: "var(--token-x)", borderRadius: 1, opacity: 0.32 }} /> not in your range
+        </span>
       </div>
     </div>
   );

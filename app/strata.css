@@ -1,0 +1,367 @@
+/* STRATA — design tokens (ported from the Claude Design handoff bundle).
+   Variables flip via [data-theme]; accent + density are pinned on the root
+   wrapper (cyan / balanced) but kept as full palettes for future tweaks. */
+
+.strata-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 100%;
+
+  /* type */
+  --font-sans: var(--font-geist-sans), "Geist", ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-geist-mono), "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* radii */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 18px;
+  --r-pill: 999px;
+
+  /* motion */
+  --ease: cubic-bezier(.2, .8, .2, 1);
+}
+
+/* ── Theme: DARK (default) ───────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg-0: #0a0e15;
+  --bg-1: #0f141e;
+  --bg-2: #141b27;
+  --bg-3: #1a2230;
+  --bg-hover: #1d2638;
+
+  --border-1: #1e2737;
+  --border-2: #2a3548;
+  --border-3: #3a4760;
+
+  --text-1: #e6ebf3;
+  --text-2: #94a0b4;
+  --text-3: #5a6577;
+  --text-4: #3d4658;
+
+  --in-range: #2dd4bf;
+  --out-range: #fbbf24;
+  --active-bin: #fbbf24;
+  --owned-bin: var(--accent-1);
+  --pool-bin: #2a3548;
+  --danger: #f87171;
+  --success: #34d399;
+  --warn: #fbbf24;
+
+  --shadow-card: 0 1px 0 0 rgba(255, 255, 255, 0.03) inset, 0 0 0 1px var(--border-1);
+  --shadow-elev: 0 24px 60px -20px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--border-2);
+  --shadow-glow: 0 0 24px -6px color-mix(in oklab, var(--accent-1) 70%, transparent);
+
+  --grid-line: rgba(255, 255, 255, 0.03);
+}
+
+/* ── Theme: LIGHT ────────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg-0: #f1f4f9;
+  --bg-1: #ffffff;
+  --bg-2: #f8fafc;
+  --bg-3: #eef2f7;
+  --bg-hover: #e4eaf2;
+
+  --border-1: #e4eaf2;
+  --border-2: #d3dbe7;
+  --border-3: #b8c4d3;
+
+  --text-1: #0b1220;
+  --text-2: #475569;
+  --text-3: #64748b;
+  --text-4: #94a3b8;
+
+  --in-range: #0d9488;
+  --out-range: #d97706;
+  --active-bin: #d97706;
+  --owned-bin: var(--accent-1);
+  --pool-bin: #cbd5e1;
+  --danger: #dc2626;
+  --success: #059669;
+  --warn: #d97706;
+
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 0 0 1px var(--border-1);
+  --shadow-elev: 0 24px 60px -20px rgba(15, 23, 42, 0.18), 0 0 0 1px var(--border-2);
+  --shadow-glow: 0 0 24px -6px color-mix(in oklab, var(--accent-1) 50%, transparent);
+
+  --grid-line: rgba(15, 23, 42, 0.04);
+}
+
+/* ── Accent palette (cyan pinned via data-accent on the root) ────────────── */
+[data-accent="cyan"] {
+  --accent-1: #22d3ee;
+  --accent-2: #06b6d4;
+  --accent-soft: rgba(34, 211, 238, 0.14);
+  --accent-fg: #042a32;
+  --token-x: #22d3ee;   /* SOL  — the accent */
+  --token-y: #a78bfa;   /* USDC — violet, distinct from accent */
+}
+[data-accent="blue"] {
+  --accent-1: #60a5fa;
+  --accent-2: #3b82f6;
+  --accent-soft: rgba(96, 165, 250, 0.14);
+  --accent-fg: #0a1a3a;
+  --token-x: #60a5fa;
+  --token-y: #34d399;
+}
+[data-accent="violet"] {
+  --accent-1: #a78bfa;
+  --accent-2: #8b5cf6;
+  --accent-soft: rgba(167, 139, 250, 0.14);
+  --accent-fg: #1a0f3a;
+  --token-x: #a78bfa;
+  --token-y: #22d3ee;
+}
+[data-accent="mint"] {
+  --accent-1: #34d399;
+  --accent-2: #10b981;
+  --accent-soft: rgba(52, 211, 153, 0.14);
+  --accent-fg: #042c20;
+  --token-x: #34d399;
+  --token-y: #f472b6;
+}
+
+/* ── Density ─────────────────────────────────────────────────────────────── */
+[data-density="roomy"] {
+  --pad-card: 24px;
+  --pad-card-y: 22px;
+  --gap-card: 20px;
+  --gap-stack: 16px;
+  --gap-inline: 12px;
+  --row-h: 52px;
+  --ctrl-h: 36px;
+  --text-base: 14.5px;
+  --text-sm: 12.5px;
+  --text-xs: 11px;
+  --text-stat: 22px;
+  --text-stat-lg: 30px;
+}
+[data-density="balanced"] {
+  --pad-card: 20px;
+  --pad-card-y: 18px;
+  --gap-card: 16px;
+  --gap-stack: 12px;
+  --gap-inline: 10px;
+  --row-h: 44px;
+  --ctrl-h: 32px;
+  --text-base: 13.5px;
+  --text-sm: 12px;
+  --text-xs: 10.5px;
+  --text-stat: 20px;
+  --text-stat-lg: 26px;
+}
+[data-density="dense"] {
+  --pad-card: 14px;
+  --pad-card-y: 12px;
+  --gap-card: 10px;
+  --gap-stack: 8px;
+  --gap-inline: 8px;
+  --row-h: 36px;
+  --ctrl-h: 28px;
+  --text-base: 12.5px;
+  --text-sm: 11px;
+  --text-xs: 10px;
+  --text-stat: 18px;
+  --text-stat-lg: 22px;
+}
+
+/* ── Reusable atoms ──────────────────────────────────────────────────────── */
+.strata {
+  font-family: var(--font-sans);
+  background: var(--bg-0);
+  color: var(--text-1);
+  font-size: var(--text-base);
+  font-feature-settings: "cv11", "ss01";
+  letter-spacing: -0.005em;
+  line-height: 1.45;
+}
+.strata, .strata * { box-sizing: border-box; }
+
+.strata .mono { font-family: var(--font-mono); font-feature-settings: "tnum", "zero"; }
+.strata .num { font-variant-numeric: tabular-nums; }
+.strata .tnum { font-variant-numeric: tabular-nums; }
+
+.strata .card {
+  background: var(--bg-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-lg);
+  padding: var(--pad-card);
+}
+.strata .card-tight { padding: 14px; }
+.strata .hairline { border-color: var(--border-1); }
+
+.strata .label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+.strata .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: var(--r-pill);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  background: var(--bg-3);
+  color: var(--text-2);
+  border: 1px solid var(--border-1);
+  white-space: nowrap;
+}
+.strata .pill.pill-in  { color: var(--in-range);  background: color-mix(in oklab, var(--in-range) 12%, transparent); border-color: color-mix(in oklab, var(--in-range) 25%, transparent); }
+.strata .pill.pill-out { color: var(--out-range); background: color-mix(in oklab, var(--out-range) 12%, transparent); border-color: color-mix(in oklab, var(--out-range) 25%, transparent); }
+.strata .pill.pill-accent { color: var(--accent-1); background: var(--accent-soft); border-color: color-mix(in oklab, var(--accent-1) 30%, transparent); }
+.strata .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.strata .pill .dot.pulse { animation: strata-pulse 1.6s var(--ease) infinite; }
+@keyframes strata-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+  50% { box-shadow: 0 0 0 4px transparent; opacity: 0.55; }
+}
+
+.strata .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: var(--ctrl-h);
+  padding: 0 12px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-2);
+  background: var(--bg-2);
+  color: var(--text-1);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .12s var(--ease), border-color .12s var(--ease), color .12s var(--ease);
+}
+.strata .btn:hover { background: var(--bg-hover); }
+.strata .btn-ghost { background: transparent; border-color: var(--border-1); }
+.strata .btn-primary {
+  background: var(--accent-1);
+  color: var(--accent-fg);
+  border-color: var(--accent-1);
+  font-weight: 600;
+}
+.strata .btn-primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
+.strata .btn-danger { color: var(--danger); border-color: color-mix(in oklab, var(--danger) 30%, transparent); }
+.strata .btn-sm { height: calc(var(--ctrl-h) - 4px); padding: 0 10px; font-size: var(--text-xs); }
+.strata .btn-icon { width: var(--ctrl-h); padding: 0; }
+.strata .btn[disabled], .strata .btn[aria-disabled="true"] { opacity: 0.4; pointer-events: none; }
+
+.strata .input, .strata select.input {
+  height: var(--ctrl-h);
+  padding: 0 10px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-2);
+  background: var(--bg-2);
+  color: var(--text-1);
+  font: inherit;
+  font-size: var(--text-sm);
+  width: 100%;
+}
+.strata .input:focus { outline: 1px solid var(--accent-1); border-color: var(--accent-1); }
+.strata textarea.input { height: auto; padding: 8px 10px; }
+
+.strata .seg {
+  display: inline-flex;
+  background: var(--bg-2);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+  padding: 3px;
+  gap: 2px;
+}
+.strata .seg > button {
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--text-xs);
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+.strata .seg > button[aria-pressed="true"] {
+  background: var(--bg-3);
+  color: var(--text-1);
+  box-shadow: 0 0 0 1px var(--border-2) inset;
+}
+
+.strata .divider { height: 1px; background: var(--border-1); width: 100%; }
+.strata .vdiv { width: 1px; background: var(--border-1); align-self: stretch; }
+
+.strata .grid-bg {
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* hover-row for table-like lists */
+.strata .row { display: grid; align-items: center; min-height: var(--row-h); }
+.strata .row:hover { background: var(--bg-2); }
+
+/* small icon system */
+.strata .ico { width: 14px; height: 14px; flex: none; display: inline-block; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.strata .ico-lg { width: 18px; height: 18px; }
+
+/* status dot */
+.strata .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 4px color-mix(in oklab, var(--success) 25%, transparent); }
+
+/* tabs */
+.strata .tabs { display: inline-flex; gap: 4px; border-bottom: 1px solid var(--border-1); }
+.strata .tabs > button {
+  border: 0; background: transparent; color: var(--text-3); padding: 10px 14px;
+  font: inherit; font-size: var(--text-sm); font-weight: 500; cursor: pointer;
+  margin-bottom: -1px; border-bottom: 1.5px solid transparent;
+}
+.strata .tabs > button[aria-current="true"] { color: var(--text-1); border-bottom-color: var(--accent-1); }
+
+/* token chip (SOL / USDC) */
+.strata .token {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-weight: 600;
+}
+.strata .token-mark {
+  width: 18px; height: 18px; border-radius: 50%; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 9px; font-family: var(--font-mono); font-weight: 700; letter-spacing: 0;
+}
+.strata .token-sol  { background: linear-gradient(135deg, #9945FF 0%, #14F195 100%); color: #0a0e15; }
+.strata .token-usdc { background: #2775CA; color: #fff; }
+
+/* range slider */
+.strata input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 4px; border-radius: 999px;
+  background: var(--bg-3); outline: none;
+}
+.strata input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent-1); border: 2px solid var(--bg-1);
+  box-shadow: 0 0 0 1px var(--accent-1);
+}
+
+/* scroll niceties */
+.strata ::-webkit-scrollbar { width: 8px; height: 8px; }
+.strata ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 99px; }
+.strata ::-webkit-scrollbar-track { background: transparent; }
+
+.strata svg { display: block; }
+
+/* modal scrim for popups (swap) */
+.strata-scrim {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(3, 6, 12, 0.62);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 96px;
+  backdrop-filter: blur(2px);
+}

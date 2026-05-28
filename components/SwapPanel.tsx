@@ -4,10 +4,7 @@ import { useState } from "react";
 import { postJson } from "@/lib/client";
 import { useWallet } from "@/lib/wallet-context";
 import { TOKENS } from "@/lib/constants";
-
-const input =
-  "w-full rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm";
-const label = "text-xs uppercase tracking-wide text-neutral-500";
+import { I, Field, sx } from "@/components/strata/ui";
 
 interface QuoteResp {
   quote: Record<string, unknown>;
@@ -24,8 +21,7 @@ export function SwapPanel({ onDone }: { onDone: () => void }) {
   const [quote, setQuote] = useState<QuoteResp | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const [inTok, outTok] =
-    dir === "SOLtoUSDC" ? [TOKENS.SOL, TOKENS.USDC] : [TOKENS.USDC, TOKENS.SOL];
+  const [inTok, outTok] = dir === "SOLtoUSDC" ? [TOKENS.SOL, TOKENS.USDC] : [TOKENS.USDC, TOKENS.SOL];
 
   async function getQuote() {
     setBusy(true);
@@ -48,20 +44,15 @@ export function SwapPanel({ onDone }: { onDone: () => void }) {
 
   async function swap() {
     if (!quote) return;
-    if (!confirm(`Swap ${amount} ${inTok.symbol} → ~${quote.uiOutAmount.toFixed(4)} ${outTok.symbol}?`))
-      return;
+    if (!confirm(`Swap ${amount} ${inTok.symbol} → ~${quote.uiOutAmount.toFixed(4)} ${outTok.symbol}?`)) return;
     setBusy(true);
     setMsg(null);
     try {
-      const r = await postJson<{ ok: boolean; signature?: string; error?: string }>(
-        "/api/swap/execute",
-        { quoteResponse: quote.quote, wallet: selected || undefined },
-      );
-      setMsg(
-        r.ok && r.signature
-          ? `Sent: ${r.signature}`
-          : `Failed: ${r.error ?? "unknown"}`,
-      );
+      const r = await postJson<{ ok: boolean; signature?: string; error?: string }>("/api/swap/execute", {
+        quoteResponse: quote.quote,
+        wallet: selected || undefined,
+      });
+      setMsg(r.ok && r.signature ? `Sent: ${r.signature}` : `Failed: ${r.error ?? "unknown"}`);
       if (r.ok) {
         setQuote(null);
         onDone();
@@ -74,14 +65,12 @@ export function SwapPanel({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-      <h3 className="mb-3 text-sm font-semibold">Swap (Jupiter)</h3>
-
-      <div className="grid grid-cols-2 gap-3">
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <div>
-          <span className={label}>Direction</span>
+          <div className={sx.label} style={{ marginBottom: 6 }}>Direction</div>
           <select
-            className={input}
+            className={sx.inputText}
             value={dir}
             onChange={(e) => {
               setDir(e.target.value as typeof dir);
@@ -92,57 +81,38 @@ export function SwapPanel({ onDone }: { onDone: () => void }) {
             <option value="USDCtoSOL">USDC → SOL</option>
           </select>
         </div>
-        <div>
-          <span className={label}>Slippage bps</span>
-          <input
-            type="number"
-            className={input}
-            value={slippageBps}
-            onChange={(e) => setSlippageBps(Number(e.target.value))}
-          />
-        </div>
-        <div className="col-span-2">
-          <span className={label}>Amount ({inTok.symbol})</span>
-          <input
-            className={input}
-            value={amount}
-            onChange={(e) => {
-              setAmount(e.target.value);
-              setQuote(null);
-            }}
-          />
-        </div>
+        <Field label="Slippage bps" value={slippageBps} type="number" onChange={(v) => setSlippageBps(Number(v))} />
       </div>
+
+      <Field
+        label={`Amount (${inTok.symbol})`}
+        value={amount}
+        suffix={inTok.symbol}
+        onChange={(v) => {
+          setAmount(v);
+          setQuote(null);
+        }}
+      />
 
       {quote && (
-        <p className="mt-2 text-sm text-neutral-300">
-          ≈ <span className="font-semibold">{quote.uiOutAmount.toFixed(6)} {outTok.symbol}</span>
-          <span className="ml-2 text-xs text-neutral-500">
+        <div style={{ fontSize: "var(--text-sm)" }}>
+          ≈ <span style={{ fontWeight: 600 }}>{quote.uiOutAmount.toFixed(6)} {outTok.symbol}</span>
+          <span style={{ marginLeft: 8, fontSize: "var(--text-xs)", color: "var(--text-3)" }}>
             impact {(Number(quote.priceImpactPct) * 100).toFixed(3)}%
           </span>
-        </p>
+        </div>
       )}
 
-      <div className="mt-3 flex gap-2">
-        <button
-          disabled={busy}
-          onClick={getQuote}
-          className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-900 disabled:opacity-50"
-        >
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="btn btn-ghost" style={{ flex: 1 }} disabled={busy} onClick={getQuote}>
           {busy ? "…" : "Get quote"}
         </button>
-        <button
-          disabled={busy || !quote}
-          onClick={swap}
-          className="rounded-lg bg-orange-700 px-3 py-1.5 text-sm hover:bg-orange-600 disabled:opacity-40"
-        >
-          Swap
+        <button className="btn btn-primary" style={{ flex: 1 }} disabled={busy || !quote} onClick={swap}>
+          {I.swap} Swap
         </button>
       </div>
 
-      {msg && (
-        <p className="mt-2 break-all font-mono text-xs text-neutral-400">{msg}</p>
-      )}
+      {msg && <p className="mono" style={{ wordBreak: "break-all", fontSize: "var(--text-xs)", color: "var(--text-3)" }}>{msg}</p>}
     </div>
   );
 }

@@ -6,22 +6,24 @@ import { ActionResponse, postJson } from "@/lib/client";
 import { useWallet } from "@/lib/wallet-context";
 import { priceToBinId } from "@/lib/binmath";
 import { MAX_POSITION_BINS } from "@/lib/constants";
+import { I, PanelCard, Seg, Field, sx } from "@/components/strata/ui";
 import { ActionResult } from "./ActionResult";
 
-const input =
-  "w-full rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm";
-const label = "text-xs uppercase tracking-wide text-neutral-500";
+const grid2 = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } as const;
 
 export function AddLiquidityPanel({
   pool,
   positions,
   onDone,
   lockedPosition,
+  draft,
 }: {
   pool: PoolResponse;
   positions: PositionInfo[];
   onDone: () => void;
   lockedPosition?: PositionInfo;
+  // chart-driven pre-fill: a new `key` applies the range (the "add band" gesture)
+  draft?: { minBinId: number; maxBinId: number; key: number };
 }) {
   const { selected } = useWallet();
   const active = pool.activeBin.binId;
@@ -63,6 +65,17 @@ export function AddLiquidityPanel({
     if (maxBinId - minBinId + 1 > 70) setMode("preset");
   }, [minBinId, maxBinId]);
 
+  // apply a chart "add band" gesture (keyed so it never clobbers later edits)
+  useEffect(() => {
+    if (!draft) return;
+    setRangeMode("bins");
+    setMinBinId(draft.minBinId);
+    setMaxBinId(draft.maxBinId);
+    setPreviewOk(false);
+    setRes(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.key]);
+
   function applyPriceRange(lo: string, hi: string) {
     const a = priceToBinId(Number(lo), active, activePrice, binStep, "floor");
     const b = priceToBinId(Number(hi), active, activePrice, binStep, "ceil");
@@ -88,10 +101,7 @@ export function AddLiquidityPanel({
       xAmount,
       yAmount,
       slippage: Number(slippage) || undefined,
-      strategy:
-        mode === "preset"
-          ? { type: "preset", kind }
-          : { type: "blend", weights },
+      strategy: mode === "preset" ? { type: "preset", kind } : { type: "blend", weights },
     };
   }
 
@@ -114,221 +124,124 @@ export function AddLiquidityPanel({
   }
 
   function execute() {
-    if (
-      confirm(
-        "Send real transaction(s)? This moves funds from your wallet into the pool.",
-      )
-    )
-      run(false);
+    if (confirm("Send real transaction(s)? This moves funds from your wallet into the pool.")) run(false);
   }
 
   const binCount = maxBinId - minBinId + 1;
   const tooWide = binCount > MAX_POSITION_BINS;
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-      <h3 className="mb-3 text-sm font-semibold">Add liquidity</h3>
-
-      <div className="grid grid-cols-2 gap-3">
-        {!lockedPosition && (
-          <div className="col-span-2">
-            <span className={label}>Target</span>
-            <select
-              className={input}
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-            >
-              <option value="">＋ New position</option>
-              {positions.map((p) => (
-                <option key={p.publicKey} value={p.publicKey}>
-                  {p.publicKey.slice(0, 6)}… ({p.lowerBinId}–{p.upperBinId})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        <div className="col-span-2 flex gap-2">
-          <button
-            className={`rounded px-2 py-1 text-xs ${rangeMode === "bins" ? "bg-neutral-700" : "bg-neutral-900"}`}
-            onClick={() => setRangeMode("bins")}
-          >
-            By bins
-          </button>
-          <button
-            className={`rounded px-2 py-1 text-xs ${rangeMode === "price" ? "bg-neutral-700" : "bg-neutral-900"}`}
-            onClick={() => {
-              setRangeMode("price");
-              applyPriceRange(minPrice, maxPrice);
-            }}
-          >
-            By price
-          </button>
-        </div>
-
-        {rangeMode === "bins" ? (
-          <>
-            <div>
-              <span className={label}>Min bin</span>
-              <input
-                type="number"
-                className={input}
-                value={minBinId}
-                onChange={(e) => setMinBinId(Number(e.target.value))}
-              />
-            </div>
-            <div>
-              <span className={label}>Max bin (active {active})</span>
-              <input
-                type="number"
-                className={input}
-                value={maxBinId}
-                onChange={(e) => setMaxBinId(Number(e.target.value))}
-              />
-            </div>
-          </>
-        ) : (
-          <>
-            <div>
-              <span className={label}>Min price (active ${activePrice.toFixed(4)})</span>
-              <input
-                className={input}
-                value={minPrice}
-                onChange={(e) => {
-                  setMinPrice(e.target.value);
-                  applyPriceRange(e.target.value, maxPrice);
-                }}
-              />
-            </div>
-            <div>
-              <span className={label}>Max price</span>
-              <input
-                className={input}
-                value={maxPrice}
-                onChange={(e) => {
-                  setMaxPrice(e.target.value);
-                  applyPriceRange(minPrice, e.target.value);
-                }}
-              />
-            </div>
-            <div className="col-span-2 flex items-center gap-2 text-xs">
-              {[0.01, 0.02, 0.05].map((p) => (
-                <button
-                  key={p}
-                  onClick={() => pctPreset(p)}
-                  className="rounded bg-neutral-900 px-2 py-1 hover:bg-neutral-800"
-                >
-                  ±{p * 100}%
-                </button>
-              ))}
-              <span className="ml-auto text-neutral-500">
-                → bins {minBinId}–{maxBinId}
-              </span>
-            </div>
-          </>
-        )}
-
+    <PanelCard icon={I.plus} title="Add liquidity" accent="var(--accent-1)">
+      {!lockedPosition && (
         <div>
-          <span className={label}>SOL amount</span>
-          <input
-            className={input}
-            value={xAmount}
-            onChange={(e) => setXAmount(e.target.value)}
-          />
-        </div>
-        <div>
-          <span className={label}>USDC amount</span>
-          <input
-            className={input}
-            value={yAmount}
-            onChange={(e) => setYAmount(e.target.value)}
-          />
-        </div>
-
-        <div className="col-span-2 flex gap-2">
-          <button
-            className={`rounded px-2 py-1 text-xs ${mode === "preset" ? "bg-neutral-700" : "bg-neutral-900"}`}
-            onClick={() => setMode("preset")}
-          >
-            Preset
-          </button>
-          <button
-            disabled={binCount > 70}
-            title={binCount > 70 ? "Custom blend limited to 70 bins" : undefined}
-            className={`rounded px-2 py-1 text-xs ${mode === "blend" ? "bg-neutral-700" : "bg-neutral-900"} disabled:opacity-40`}
-            onClick={() => setMode("blend")}
-          >
-            Custom blend
-          </button>
-        </div>
-
-        {mode === "preset" ? (
-          <div className="col-span-2">
-            <span className={label}>Strategy</span>
-            <select
-              className={input}
-              value={kind}
-              onChange={(e) => setKind(e.target.value as typeof kind)}
-            >
-              <option value="Spot">Spot (uniform)</option>
-              <option value="Curve">Curve (bell)</option>
-              <option value="BidAsk">BidAsk (edges)</option>
-            </select>
-          </div>
-        ) : (
-          <div className="col-span-2 grid grid-cols-3 gap-2">
-            {(["spot", "curve", "bidask"] as const).map((k) => (
-              <div key={k}>
-                <span className={label}>{k} wt</span>
-                <input
-                  type="number"
-                  className={input}
-                  value={weights[k]}
-                  onChange={(e) =>
-                    setWeights({ ...weights, [k]: Number(e.target.value) })
-                  }
-                />
-              </div>
+          <div className={sx.label} style={{ marginBottom: 6 }}>Target</div>
+          <select className={sx.inputText} value={target} onChange={(e) => setTarget(e.target.value)}>
+            <option value="">＋ New position</option>
+            {positions.map((p) => (
+              <option key={p.publicKey} value={p.publicKey}>
+                {p.publicKey.slice(0, 6)}… ({p.lowerBinId}–{p.upperBinId})
+              </option>
             ))}
-          </div>
-        )}
-
-        <div>
-          <span className={label}>Slippage %</span>
-          <input
-            className={input}
-            value={slippage}
-            onChange={(e) => setSlippage(e.target.value)}
-          />
+          </select>
         </div>
-        <div className="flex items-end text-xs text-neutral-500">
+      )}
+
+      <Seg
+        value={rangeMode}
+        options={[["bins", "By bins"], ["price", "By price"]]}
+        onChange={(v) => {
+          setRangeMode(v);
+          if (v === "price") applyPriceRange(minPrice, maxPrice);
+        }}
+      />
+
+      {rangeMode === "bins" ? (
+        <div style={grid2}>
+          <Field label="Min bin" value={minBinId} type="number" onChange={(v) => setMinBinId(Number(v))} />
+          <Field label={`Max bin (active ${active})`} value={maxBinId} type="number" onChange={(v) => setMaxBinId(Number(v))} />
+        </div>
+      ) : (
+        <>
+          <div style={grid2}>
+            <Field
+              label={`Min price (active $${activePrice.toFixed(4)})`}
+              value={minPrice}
+              onChange={(v) => {
+                setMinPrice(v);
+                applyPriceRange(v, maxPrice);
+              }}
+            />
+            <Field
+              label="Max price"
+              value={maxPrice}
+              onChange={(v) => {
+                setMaxPrice(v);
+                applyPriceRange(minPrice, v);
+              }}
+            />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-xs)", color: "var(--text-3)" }}>
+            {[0.01, 0.02, 0.05].map((p) => (
+              <button key={p} className="btn btn-sm btn-ghost" onClick={() => pctPreset(p)}>
+                ±{p * 100}%
+              </button>
+            ))}
+            <span style={{ marginLeft: "auto" }}>→ bins {minBinId}–{maxBinId}</span>
+          </div>
+        </>
+      )}
+
+      <div style={grid2}>
+        <Field label="SOL amount" value={xAmount} suffix="SOL" onChange={setXAmount} />
+        <Field label="USDC amount" value={yAmount} suffix="USDC" onChange={setYAmount} />
+      </div>
+
+      <Seg
+        value={mode}
+        options={[["preset", "Preset"], ["blend", "Custom blend"]]}
+        onChange={setMode}
+        disabledValues={binCount > 70 ? ["blend"] : []}
+      />
+
+      {mode === "preset" ? (
+        <div>
+          <div className={sx.label} style={{ marginBottom: 6 }}>Strategy</div>
+          <select className={sx.inputText} value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
+            <option value="Spot">Spot (uniform)</option>
+            <option value="Curve">Curve (bell)</option>
+            <option value="BidAsk">BidAsk (edges)</option>
+          </select>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          {(["spot", "curve", "bidask"] as const).map((k) => (
+            <Field key={k} label={`${k} wt`} value={weights[k]} type="number" onChange={(v) => setWeights({ ...weights, [k]: Number(v) })} />
+          ))}
+        </div>
+      )}
+
+      <div style={grid2}>
+        <Field label="Slippage %" value={slippage} onChange={setSlippage} />
+        <div style={{ display: "flex", alignItems: "flex-end", fontSize: "var(--text-xs)", color: "var(--text-3)" }}>
           {binCount} bins
           {tooWide ? (
-            <span className="ml-1 text-red-400">(max {MAX_POSITION_BINS})</span>
+            <span style={{ marginLeft: 4, color: "var(--danger)" }}>(max {MAX_POSITION_BINS})</span>
           ) : binCount > 70 ? (
-            <span className="ml-1 text-amber-400">extended · preset only</span>
+            <span style={{ marginLeft: 4, color: "var(--warn)" }}>extended · preset only</span>
           ) : null}
         </div>
       </div>
 
-      <div className="mt-3 flex gap-2">
-        <button
-          disabled={busy || tooWide}
-          onClick={() => run(true)}
-          className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-900 disabled:opacity-50"
-        >
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="btn btn-ghost" style={{ flex: 1 }} disabled={busy || tooWide} onClick={() => run(true)}>
           {busy ? "…" : "Preview"}
         </button>
-        <button
-          disabled={busy || !previewOk || tooWide}
-          onClick={execute}
-          className="rounded-lg bg-emerald-700 px-3 py-1.5 text-sm hover:bg-emerald-600 disabled:opacity-40"
-        >
-          Execute
+        <button className="btn btn-primary" style={{ flex: 1 }} disabled={busy || !previewOk || tooWide} onClick={execute}>
+          {I.plus} Add
         </button>
       </div>
 
       <ActionResult res={res} />
-    </div>
+    </PanelCard>
   );
 }

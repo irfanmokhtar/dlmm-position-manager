@@ -55,6 +55,20 @@ export interface PositionsResponse {
   positions: PositionInfo[];
 }
 
+// Per-position PnL/analytics from the Meteora data API (client-safe subset).
+export interface PositionPnL {
+  positionAddress: string;
+  createdAt: number; // unix seconds when the position was opened
+  isClosed: boolean;
+  pnlUsd: string;
+  pnlPctChange: string;
+  feePerTvl24h: string; // fee earned / TVL over a rolling 24h window
+}
+
+export interface PositionPnLResponse {
+  positions: PositionPnL[];
+}
+
 // raw amount string -> human number using token decimals
 export function toUi(raw: string | number, decimals: number): number {
   return Number(raw) / 10 ** decimals;

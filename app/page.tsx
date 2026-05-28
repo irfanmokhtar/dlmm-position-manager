@@ -1,15 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { AppHeader } from "@/components/strata/AppHeader";
 import { PoolHeader } from "@/components/PoolHeader";
 import { BinChart } from "@/components/BinChart";
 import { PositionTable } from "@/components/PositionTable";
-import { AddLiquidityPanel } from "@/components/AddLiquidityPanel";
-import { ClaimBar } from "@/components/ClaimBar";
-import { SwapPanel } from "@/components/SwapPanel";
-import { WalletSelector } from "@/components/WalletSelector";
+import { WalletSummary } from "@/components/strata/WalletSummary";
+import { PositionRail } from "@/components/strata/PositionRail";
+import { SwapModal } from "@/components/strata/SwapModal";
 import { useWallet } from "@/lib/wallet-context";
-import { PoolResponse, PositionsResponse } from "@/lib/types";
+import { PoolResponse, PositionInfo, PositionsResponse } from "@/lib/types";
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url, { cache: "no-store" });
@@ -25,13 +25,16 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // right-rail state — Layout B: position detail opens in place, no route change
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [createMode, setCreateMode] = useState(false);
+  const [swapOpen, setSwapOpen] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const posUrl = selected
-        ? `/api/positions?wallet=${selected}`
-        : "/api/positions";
+      const posUrl = selected ? `/api/positions?wallet=${selected}` : "/api/positions";
       const [p, pos] = await Promise.all([
         fetchJson<PoolResponse>("/api/pool"),
         fetchJson<PositionsResponse>(posUrl),
@@ -49,53 +52,84 @@ export default function Dashboard() {
     load();
   }, [load]);
 
+  // deep-link: /?pos=<pubkey> opens that position's rail
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("pos");
+    if (id) setSelectedId(id);
+  }, []);
+
+  const selectedPosition: PositionInfo | null =
+    (selectedId && positions?.positions.find((p) => p.publicKey === selectedId)) || null;
+  const railOpen = createMode || Boolean(selectedPosition);
+
+  function openPosition(p: PositionInfo) {
+    setCreateMode(false);
+    setSelectedId(p.publicKey);
+  }
+  function openNew() {
+    setSelectedId(null);
+    setCreateMode(true);
+  }
+  function closeRail() {
+    setSelectedId(null);
+    setCreateMode(false);
+  }
+
   return (
-    <main className="mx-auto min-h-screen max-w-6xl bg-black px-4 py-8 text-neutral-100">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">DLMM Position Manager</h1>
-        <div className="flex items-center gap-2">
-          <WalletSelector />
-          <button
-            onClick={load}
-            disabled={loading}
-            className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-900 disabled:opacity-50"
-          >
-            {loading ? "Loading…" : "Refresh"}
-          </button>
-        </div>
+    <div className="strata" style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg-0)" }}>
+      <AppHeader onSwap={() => setSwapOpen(true)} onRefresh={load} loading={loading} />
+
+      <div style={{ display: "flex", flex: 1, alignItems: "flex-start", minHeight: 0 }}>
+        <main style={{ flex: 1, minWidth: 0, padding: 20, display: "flex", flexDirection: "column", gap: "var(--gap-card)" }}>
+          {error && (
+            <div
+              className="card"
+              style={{ borderColor: "color-mix(in oklab, var(--danger) 30%, transparent)", color: "var(--danger)" }}
+            >
+              <p style={{ fontWeight: 600, margin: 0 }}>Failed to load.</p>
+              <p className="mono" style={{ marginTop: 4, fontSize: "var(--text-xs)" }}>{error}</p>
+              <p style={{ marginTop: 8, color: "var(--text-3)", fontSize: "var(--text-xs)" }}>
+                Check that <code>RPC_URL</code> and <code>WALLETS</code> (or legacy <code>WALLET_SECRET</code>) are set in
+                <code> .env.local</code>.
+              </p>
+            </div>
+          )}
+
+          {pool && (
+            <>
+              <PoolHeader data={pool} />
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: "var(--gap-card)", alignItems: "start" }}>
+                <BinChart pool={pool} positions={positions ?? undefined} />
+                <WalletSummary pool={pool} positions={positions} onDone={load} />
+              </div>
+              {positions && (
+                <PositionTable
+                  pool={pool}
+                  data={positions}
+                  selectedId={selectedPosition?.publicKey}
+                  onOpen={openPosition}
+                  onNew={openNew}
+                />
+              )}
+            </>
+          )}
+
+          {!pool && !error && <div style={{ color: "var(--text-3)" }}>Loading pool…</div>}
+        </main>
+
+        {pool && positions && railOpen && (
+          <PositionRail
+            pool={pool}
+            positions={positions}
+            selected={selectedPosition}
+            createMode={createMode}
+            onClose={closeRail}
+            onDone={load}
+          />
+        )}
       </div>
 
-      {error && (
-        <div className="mb-6 rounded-lg border border-red-900 bg-red-950/50 p-4 text-sm text-red-300">
-          <p className="font-semibold">Failed to load.</p>
-          <p className="mt-1 font-mono text-xs">{error}</p>
-          <p className="mt-2 text-red-400/80">
-            Check that <code>RPC_URL</code> and <code>WALLETS</code> (or legacy{" "}
-            <code>WALLET_SECRET</code>) are set in <code>.env.local</code>.
-          </p>
-        </div>
-      )}
-
-      {pool && (
-        <div className="flex flex-col gap-6">
-          <PoolHeader data={pool} />
-          <BinChart pool={pool} positions={positions ?? undefined} />
-
-          {positions && <PositionTable pool={pool} data={positions} />}
-
-          <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <SwapPanel onDone={load} />
-            <ClaimBar onDone={load} />
-            <AddLiquidityPanel
-              pool={pool}
-              positions={positions?.positions ?? []}
-              onDone={load}
-            />
-          </section>
-        </div>
-      )}
-
-      {!pool && !error && <div className="text-neutral-500">Loading pool…</div>}
-    </main>
+      {swapOpen && <SwapModal onClose={() => setSwapOpen(false)} onDone={load} />}
+    </div>
   );
 }

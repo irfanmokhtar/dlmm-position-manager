@@ -4,25 +4,25 @@ import { useEffect, useState } from "react";
 import { PositionInfo } from "@/lib/types";
 import { ActionResponse, postJson } from "@/lib/client";
 import { useWallet } from "@/lib/wallet-context";
+import { I, PanelCard, Field, sx } from "@/components/strata/ui";
 import { ActionResult } from "./ActionResult";
 
-const input =
-  "w-full rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm";
-const label = "text-xs uppercase tracking-wide text-neutral-500";
+const grid2 = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } as const;
 
 export function RemovePanel({
   positions,
   onDone,
   lockedPosition,
+  draft,
 }: {
   positions: PositionInfo[];
   onDone: () => void;
   lockedPosition?: PositionInfo;
+  // chart-driven pre-fill from the "withdraw band" gesture
+  draft?: { fromBinId: number; toBinId: number; bps: number; key: number };
 }) {
   const { selected } = useWallet();
-  const [target, setTarget] = useState(
-    lockedPosition?.publicKey ?? positions[0]?.publicKey ?? "",
-  );
+  const [target, setTarget] = useState(lockedPosition?.publicKey ?? positions[0]?.publicKey ?? "");
   const [fromBinId, setFromBinId] = useState(0);
   const [toBinId, setToBinId] = useState(0);
   const [bps, setBps] = useState(10000);
@@ -40,6 +40,17 @@ export function RemovePanel({
     setPreviewOk(false);
     setRes(null);
   }, [target, positions]);
+
+  // apply a chart "withdraw band" gesture (keyed)
+  useEffect(() => {
+    if (!draft) return;
+    setFromBinId(draft.fromBinId);
+    setToBinId(draft.toBinId);
+    setBps(draft.bps);
+    setPreviewOk(false);
+    setRes(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.key]);
 
   async function run(dryRun: boolean) {
     setBusy(true);
@@ -68,99 +79,67 @@ export function RemovePanel({
   }
 
   function execute() {
-    if (confirm("Send real transaction(s)? This withdraws liquidity."))
-      run(false);
+    if (confirm("Send real transaction(s)? This withdraws liquidity.")) run(false);
   }
 
   if (positions.length === 0) {
     return (
-      <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-sm text-neutral-500">
-        No positions to remove from.
-      </div>
+      <PanelCard icon={I.minus} title="Remove liquidity" accent="var(--danger)">
+        <div style={{ fontSize: "var(--text-sm)", color: "var(--text-3)" }}>No positions to remove from.</div>
+      </PanelCard>
     );
   }
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-      <h3 className="mb-3 text-sm font-semibold">Remove liquidity</h3>
-
-      <div className="grid grid-cols-2 gap-3">
-        {!lockedPosition && (
-          <div className="col-span-2">
-            <span className={label}>Position</span>
-            <select
-              className={input}
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-            >
-              {positions.map((p) => (
-                <option key={p.publicKey} value={p.publicKey}>
-                  {p.publicKey.slice(0, 6)}… ({p.lowerBinId}–{p.upperBinId})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
+    <PanelCard icon={I.minus} title="Remove liquidity" accent="var(--danger)">
+      {!lockedPosition && (
         <div>
-          <span className={label}>From bin</span>
-          <input
-            type="number"
-            className={input}
-            value={fromBinId}
-            onChange={(e) => setFromBinId(Number(e.target.value))}
-          />
+          <div className={sx.label} style={{ marginBottom: 6 }}>Position</div>
+          <select className={sx.inputText} value={target} onChange={(e) => setTarget(e.target.value)}>
+            {positions.map((p) => (
+              <option key={p.publicKey} value={p.publicKey}>
+                {p.publicKey.slice(0, 6)}… ({p.lowerBinId}–{p.upperBinId})
+              </option>
+            ))}
+          </select>
         </div>
-        <div>
-          <span className={label}>To bin</span>
-          <input
-            type="number"
-            className={input}
-            value={toBinId}
-            onChange={(e) => setToBinId(Number(e.target.value))}
-          />
-        </div>
+      )}
 
-        <div className="col-span-2">
-          <span className={label}>Amount: {(bps / 100).toFixed(0)}%</span>
-          <input
-            type="range"
-            min={1}
-            max={10000}
-            value={bps}
-            onChange={(e) => setBps(Number(e.target.value))}
-            className="w-full"
-          />
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+          <div className={sx.label}>Withdraw amount</div>
+          <span className="mono num" style={{ color: "var(--danger)", fontWeight: 600 }}>{(bps / 100).toFixed(0)}%</span>
         </div>
-
-        <label className="col-span-2 flex items-center gap-2 text-xs text-neutral-400">
-          <input
-            type="checkbox"
-            checked={claimClose}
-            onChange={(e) => setClaimClose(e.target.checked)}
-          />
-          Claim fees & close position if fully emptied
-        </label>
+        <input type="range" min={1} max={10000} value={bps} onChange={(e) => setBps(Number(e.target.value))} />
+        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+          {[2500, 5000, 7500, 10000].map((v) => (
+            <button key={v} className="btn btn-sm btn-ghost" style={{ flex: 1 }} onClick={() => setBps(v)}>
+              {v / 100}%
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="mt-3 flex gap-2">
-        <button
-          disabled={busy}
-          onClick={() => run(true)}
-          className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-900 disabled:opacity-50"
-        >
+      <div style={grid2}>
+        <Field label="From bin" value={fromBinId} type="number" onChange={(v) => setFromBinId(Number(v))} />
+        <Field label="To bin" value={toBinId} type="number" onChange={(v) => setToBinId(Number(v))} />
+      </div>
+
+      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--text-xs)", color: "var(--text-2)" }}>
+        <input type="checkbox" checked={claimClose} onChange={(e) => setClaimClose(e.target.checked)} />
+        Claim fees &amp; close position if fully emptied
+      </label>
+
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="btn btn-ghost" style={{ flex: 1 }} disabled={busy} onClick={() => run(true)}>
           {busy ? "…" : "Preview"}
         </button>
-        <button
-          disabled={busy || !previewOk}
-          onClick={execute}
-          className="rounded-lg bg-red-700 px-3 py-1.5 text-sm hover:bg-red-600 disabled:opacity-40"
-        >
-          Execute
+        <button className="btn btn-danger" style={{ flex: 1 }} disabled={busy || !previewOk} onClick={execute}>
+          {I.minus} Withdraw
         </button>
       </div>
 
       <ActionResult res={res} />
-    </div>
+    </PanelCard>
   );
 }
