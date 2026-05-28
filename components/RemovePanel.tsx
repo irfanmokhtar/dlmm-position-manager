@@ -13,10 +13,13 @@ export function RemovePanel({
   positions,
   onDone,
   lockedPosition,
+  draft,
 }: {
   positions: PositionInfo[];
   onDone: () => void;
   lockedPosition?: PositionInfo;
+  // chart-driven pre-fill from the "withdraw band" gesture
+  draft?: { fromBinId: number; toBinId: number; bps: number; key: number };
 }) {
   const { selected } = useWallet();
   const [target, setTarget] = useState(lockedPosition?.publicKey ?? positions[0]?.publicKey ?? "");
@@ -37,6 +40,17 @@ export function RemovePanel({
     setPreviewOk(false);
     setRes(null);
   }, [target, positions]);
+
+  // apply a chart "withdraw band" gesture (keyed)
+  useEffect(() => {
+    if (!draft) return;
+    setFromBinId(draft.fromBinId);
+    setToBinId(draft.toBinId);
+    setBps(draft.bps);
+    setPreviewOk(false);
+    setRes(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.key]);
 
   async function run(dryRun: boolean) {
     setBusy(true);

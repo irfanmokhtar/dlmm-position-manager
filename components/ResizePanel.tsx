@@ -13,10 +13,13 @@ export function ResizePanel({
   positions,
   onDone,
   lockedPosition,
+  draft,
 }: {
   positions: PositionInfo[];
   onDone: () => void;
   lockedPosition?: PositionInfo;
+  // chart-driven pre-fill from an edge-drag (resize) gesture
+  draft?: { side: "Lower" | "Upper"; action: "increase" | "decrease"; length: number; key: number };
 }) {
   const { selected } = useWallet();
   const [target, setTarget] = useState(lockedPosition?.publicKey ?? positions[0]?.publicKey ?? "");
@@ -34,6 +37,15 @@ export function ResizePanel({
     setPreviewOk(false);
     setRes(null);
   }, [target, action, side, length]);
+
+  // apply a chart edge-drag (resize) gesture (keyed)
+  useEffect(() => {
+    if (!draft) return;
+    setSide(draft.side);
+    setAction(draft.action);
+    setLength(draft.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.key]);
 
   async function run(dryRun: boolean) {
     setBusy(true);

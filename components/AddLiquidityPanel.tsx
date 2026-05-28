@@ -16,11 +16,14 @@ export function AddLiquidityPanel({
   positions,
   onDone,
   lockedPosition,
+  draft,
 }: {
   pool: PoolResponse;
   positions: PositionInfo[];
   onDone: () => void;
   lockedPosition?: PositionInfo;
+  // chart-driven pre-fill: a new `key` applies the range (the "add band" gesture)
+  draft?: { minBinId: number; maxBinId: number; key: number };
 }) {
   const { selected } = useWallet();
   const active = pool.activeBin.binId;
@@ -61,6 +64,17 @@ export function AddLiquidityPanel({
   useEffect(() => {
     if (maxBinId - minBinId + 1 > 70) setMode("preset");
   }, [minBinId, maxBinId]);
+
+  // apply a chart "add band" gesture (keyed so it never clobbers later edits)
+  useEffect(() => {
+    if (!draft) return;
+    setRangeMode("bins");
+    setMinBinId(draft.minBinId);
+    setMaxBinId(draft.maxBinId);
+    setPreviewOk(false);
+    setRes(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.key]);
 
   function applyPriceRange(lo: string, hi: string) {
     const a = priceToBinId(Number(lo), active, activePrice, binStep, "floor");

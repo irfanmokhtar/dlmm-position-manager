@@ -4,11 +4,11 @@
 // expand button (or a direct /positions/<pubkey> deep link). Unlike the rail's
 // tabbed single-action view, every action panel is visible at once in a 2×2
 // grid alongside a large liquidity chart and a per-bin breakdown.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppHeader } from "@/components/strata/AppHeader";
 import { SwapModal } from "@/components/strata/SwapModal";
-import { PositionLiqChart } from "@/components/strata/PositionLiqChart";
+import { PositionLiqChart, type ChartGesture, type ChartMode } from "@/components/strata/PositionLiqChart";
 import { PositionHeader } from "@/components/strata/PositionHeader";
 import { PositionBinBreakdown } from "@/components/strata/PositionBinBreakdown";
 import { AddLiquidityPanel } from "@/components/AddLiquidityPanel";
@@ -25,6 +25,20 @@ async function fetchJson<T>(url: string): Promise<T> {
   return json as T;
 }
 
+// Gesture toggles — armed one at a time; matches the four action panels.
+const MODES: { key: Exclude<ChartMode, null>; label: string }[] = [
+  { key: "add", label: "Add" },
+  { key: "remove", label: "Remove" },
+  { key: "resize", label: "Resize" },
+  { key: "rebalance", label: "Rebalance" },
+];
+const MODE_HINTS: Record<Exclude<ChartMode, null>, string> = {
+  add: "Drag the dashed slot endpoints to set the band to top up — release pre-fills Add.",
+  remove: "Drag the red pips for the band · drag the % bar for amount — release pre-fills Remove.",
+  resize: "Drag the LO / HI edges to widen or narrow — release pre-fills Resize.",
+  rebalance: "Drag the grip to recenter (rebalances on the active bin) — release jumps to Rebalance.",
+};
+
 export default function PositionPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
@@ -36,6 +50,30 @@ export default function PositionPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [swapOpen, setSwapOpen] = useState(false);
+
+  // chart-gesture → panel pre-fill drafts (keyed so they apply once per drag)
+  const draftKey = useRef(0);
+  const [addDraft, setAddDraft] = useState<{ minBinId: number; maxBinId: number; key: number }>();
+  const [removeDraft, setRemoveDraft] = useState<{ fromBinId: number; toBinId: number; bps: number; key: number }>();
+  const [resizeDraft, setResizeDraft] = useState<{ side: "Lower" | "Upper"; action: "increase" | "decrease"; length: number; key: number }>();
+  const [highlight, setHighlight] = useState<string | null>(null);
+  const [chartMode, setChartMode] = useState<ChartMode>(null);
+
+  const handleGesture = useCallback((g: ChartGesture) => {
+    const key = draftKey.current + 1;
+    draftKey.current = key;
+    const panelId =
+      g.type === "add" ? "add-panel" : g.type === "withdraw" ? "remove-panel" : g.type === "resize" ? "resize-panel" : "rebalance-panel";
+    if (g.type === "add") setAddDraft({ minBinId: g.minBinId, maxBinId: g.maxBinId, key });
+    else if (g.type === "withdraw") setRemoveDraft({ fromBinId: g.fromBinId, toBinId: g.toBinId, bps: g.bps, key });
+    else if (g.type === "resize") setResizeDraft({ side: g.side, action: g.action, length: g.length, key });
+    document.getElementById(panelId)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlight(panelId);
+    window.setTimeout(() => setHighlight((h) => (h === panelId ? null : h)), 1500);
+  }, []);
+
+  const ring = (id: string): React.CSSProperties =>
+    highlight === id ? { outline: "2px solid var(--accent-1)", outlineOffset: 3, borderRadius: "var(--r-lg)" } : {};
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -103,13 +141,37 @@ export default function PositionPage() {
             {/* Centerpiece: big chart + per-bin breakdown */}
             <div style={{ display: "grid", gridTemplateColumns: "1.55fr 1fr", gap: "var(--gap-card)", alignItems: "start" }}>
               <div className="card" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>Position liquidity</div>
-                  <div style={{ color: "var(--text-3)", fontSize: "var(--text-xs)", marginTop: 2 }}>
-                    Bins {position.lowerBinId}–{position.upperBinId} · with surrounding pool context
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>Position liquidity</div>
+                    <div style={{ color: "var(--text-3)", fontSize: "var(--text-xs)", marginTop: 2, maxWidth: 460 }}>
+                      {chartMode ? MODE_HINTS[chartMode] : "Arm an action to reveal its on-chart control."}
+                    </div>
+                  </div>
+                  <div className="seg">
+                    {MODES.map((m) => (
+                      <button
+                        key={m.key}
+                        aria-pressed={chartMode === m.key}
+                        onClick={() => setChartMode((cur) => (cur === m.key ? null : m.key))}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
-                <PositionLiqChart pool={pool} position={position} activeBinId={activeBinId} width={760} height={340} />
+                <PositionLiqChart
+                  pool={pool}
+                  position={position}
+                  activeBinId={activeBinId}
+                  width={760}
+                  height={340}
+                  interactive
+                  mode={chartMode}
+                  onGesture={handleGesture}
+                  removeBand={removeDraft ? { lo: Math.min(removeDraft.fromBinId, removeDraft.toBinId), hi: Math.max(removeDraft.fromBinId, removeDraft.toBinId), pct: removeDraft.bps / 100 } : undefined}
+                  addBand={addDraft ? { lo: Math.min(addDraft.minBinId, addDraft.maxBinId), hi: Math.max(addDraft.minBinId, addDraft.maxBinId) } : undefined}
+                />
                 <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", fontSize: "var(--text-xs)", color: "var(--text-3)", paddingTop: 8, borderTop: "1px solid var(--border-1)" }}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                     <span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--token-x)" }} />
@@ -132,14 +194,21 @@ export default function PositionPage() {
               <PositionBinBreakdown pool={pool} position={position} activeBinId={activeBinId} />
             </div>
 
-            {/* Action panels — all four visible at once */}
+            {/* Action panels — all four visible at once. Chart gestures
+                pre-fill the matching panel (highlighted briefly on release). */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--gap-card)", alignItems: "start" }}>
-              <AddLiquidityPanel pool={pool} {...panelBase} />
-              <div id="remove-panel">
-                <RemovePanel {...panelBase} />
+              <div id="add-panel" style={ring("add-panel")}>
+                <AddLiquidityPanel pool={pool} {...panelBase} draft={addDraft} />
               </div>
-              <ResizePanel {...panelBase} />
-              <RebalancePanel {...panelBase} />
+              <div id="remove-panel" style={ring("remove-panel")}>
+                <RemovePanel {...panelBase} draft={removeDraft} />
+              </div>
+              <div id="resize-panel" style={ring("resize-panel")}>
+                <ResizePanel {...panelBase} draft={resizeDraft} />
+              </div>
+              <div id="rebalance-panel" style={ring("rebalance-panel")}>
+                <RebalancePanel {...panelBase} />
+              </div>
             </div>
           </>
         )}
