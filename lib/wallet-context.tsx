@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 
 export interface WalletOption {
   pubkey: string;
@@ -25,6 +26,7 @@ const Ctx = createContext<WalletCtx | null>(null);
 const STORAGE_KEY = "dlmm.selectedWallet";
 
 export function WalletProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const [wallets, setWallets] = useState<WalletOption[]>([]);
   const [selected, setSelectedState] = useState<string>("");
 
@@ -50,8 +52,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, []);
 
   function setSelected(pubkey: string) {
+    const changed = pubkey !== selected;
     setSelectedState(pubkey);
     localStorage.setItem(STORAGE_KEY, pubkey);
+    // Switching wallet invalidates the current per-position view (positions are
+    // wallet-scoped) — send the user back to the dashboard.
+    if (changed) router.push("/");
   }
 
   return (
