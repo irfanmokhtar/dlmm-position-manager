@@ -143,11 +143,13 @@ export function PositionLiqChart({
   const aLo0 = clamp(positionHi - Math.round((positionHi - positionLo) * 0.25), positionLo, positionHi);
   const aHi0 = clamp(positionHi - 1, positionLo, positionHi);
 
-  // which markers to draw: per armed mode when interactive, else all (static preview)
-  const showResize = !interactive || mode === "resize";
-  const showRebalance = !interactive || mode === "rebalance";
-  const showRemove = !interactive || mode === "remove";
-  const showAdd = !interactive || mode === "add";
+  // which markers to draw: only the armed mode's marker, and only when
+  // interactive. Non-interactive (rail preview) draws no markers — just the
+  // position liquidity bars.
+  const showResize = interactive && mode === "resize";
+  const showRebalance = interactive && mode === "rebalance";
+  const showRemove = interactive && mode === "remove";
+  const showAdd = interactive && mode === "add";
 
   // draft-aware geometry (reflects an in-flight drag); when idle in resize mode
   // the edges hold the last pulled band so they line up with the form's bin count
