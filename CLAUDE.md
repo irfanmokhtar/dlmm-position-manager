@@ -25,9 +25,14 @@ A single-pool Meteora DLMM (SOL/USDC) management app exposing SDK power beyond t
 
 **Signing model — the load-bearing constraint.** Wallets are *local keypairs*, held only in `lib/solana.ts` as a lazy registry built from `env.WALLETS` (insertion order; first = default). `getWallet(pubkey?)` resolves one (no arg → default); `listWallets()` / `getDefaultWalletPubkey()` expose pubkey+label only. All transaction building/signing/sending happens **server-side in `app/api/*` route handlers**. Keypairs must never reach the browser: `lib/{env,solana,dlmm,tx,strategies}.ts` each throw if `window` is defined, and must not be imported from any `"use client"` component. The client only renders data and POSTs action requests.
 
-**Wallet selection.** Each write route takes an optional `wallet` (base58 pubkey) in its body; read routes take `?wallet=` query. Both pass it to `getWallet(body.wallet)` — unknown pubkey throws, omitted falls back to default. Client picks via `components/WalletSelector.tsx` backed by `lib/wallet-context.tsx` (`WalletProvider` in `app/layout.tsx`), which fetches `/api/wallets` and persists the choice in `localStorage`. The context holds pubkey+label only — secrets stay server-side.
+**Wallet selection.** Each write route takes an optional `wallet` (base58 pubkey) in its body; read routes take `?wallet=` query. Both pass it to `getWallet(body.wallet)` / `getWalletPublicKey(pubkey?)` — unknown pubkey throws, omitted falls back to default. Client picks via `components/WalletSelector.tsx` backed by `lib/wallet-context.tsx` (`WalletProvider` in `app/layout.tsx`), which fetches `/api/wallets` and persists the choice in `localStorage`. The context holds pubkey+label only — secrets stay server-side.
 
 **Read path.** `lib/dlmm.ts#getDlmm()` returns a cached `DLMM` instance and calls `refetchStates()` on every access so reads are fresh. SDK objects contain `BN`, `PublicKey`, and `Decimal` values that are not JSON-safe — route handlers pass responses through `lib/serialize.ts#serialize()` (BN/bigint→string, PublicKey→base58, Decimal→string) before returning. Client-side response shapes live in `lib/types.ts` (no SDK imports).
+
+Additional read routes backed by the Meteora data API (not on-chain SDK):
+- `/api/analytics` — GET `?wallet=`: aggregated PnL + portfolio (open + total) for the active pool/wallet.
+- `/api/position/pnl` — GET `?wallet=`: per-position PnL list (`PositionPnLResponse`); fetched best-effort in Layout A.
+- `/api/wallet/total-claims` — GET `?wallet=`: lifetime claimed fees + LM rewards (`WalletTotalClaimsResponse`).
 
 **Write path.** Every write route accepts `dryRun` and routes through `lib/tx.ts`. `previewTransactions`/`sendTransactions` take `(txs, wallet, extraSigners[])`:
 - `previewTransactions` simulates **only the first** tx (later chunks depend on earlier ones — e.g. bin-array init — having already landed).
@@ -38,7 +43,17 @@ A single-pool Meteora DLMM (SOL/USDC) management app exposing SDK power beyond t
 
 The UI mirrors this with a **Preview → Execute** flow (Execute is gated behind a successful sim + `confirm()`), see `components/{AddLiquidityPanel,RemovePanel,ActionResult}.tsx`.
 
-**UI routing.** Two client routes. Dashboard `app/page.tsx` holds pool-wide context (`PoolHeader`, `BinChart`), the clickable `PositionTable`, and wallet-wide actions (`SwapPanel`, `ClaimBar`) plus `AddLiquidityPanel` in create-new mode. Each `PositionTable` row routes (`useRouter().push`) to the per-position page `app/positions/[id]/page.tsx`, where `[id]` is the position base58 pubkey (URL-safe, read via `useParams`). That page re-fetches `/api/{pool,positions}`, finds the matching position, and renders its `PositionChart` + the four per-position panels (`Add/Remove/Resize/Rebalance`) **locked** to it. Each panel takes an optional `lockedPosition?: PositionInfo` prop: when set it pins `target` and hides the position dropdown (and the `＋ New position` option in Add); when absent the dropdown behaves as before.
+**UI routing — two layouts, two routes.**
+
+- **Layout B (dashboard, `app/page.tsx`)** — default view. Shows `PoolHeader`, `BinChart`, `WalletSummary` (wraps `ClaimBar`), and `PositionTable`. Clicking a position row opens a sticky right-rail (`PositionRail`, 480 px) in-place — no route change. The rail shows a compact `PositionLiqChart` + one action panel at a time (tab: add/remove/resize/rebalance). Creating a new position (`createMode`) also opens in the rail. Swap is a modal (`SwapModal`) triggered from `AppHeader`.
+
+- **Layout A (per-position page, `app/positions/[id]/page.tsx`)** — full-width detail. Reached from the rail's expand button or direct deep link (`/positions/<base58>`). Re-fetches `/api/{pool,positions}` and `/api/position/pnl` (best-effort). Renders `PositionHeader` (with PnL), a full-width interactive `PositionLiqChart`, optional `PositionBinBreakdown`, and all four action panels in a 2×2 grid. Chart drag gestures (add band, remove band, resize edges, recenter grip) pre-fill the matching panel on release.
+
+Both layouts: each panel takes `lockedPosition?: PositionInfo` — when set it pins `target` and hides the position dropdown (and the `＋ New position` option in Add).
+
+**STRATA design system.** UI uses the STRATA token system. Design tokens live in `app/strata.css`, scoped under `.strata`. Dark/light theme via `lib/theme-context.tsx` (`ThemeProvider`) — sets `data-theme` on the `.strata-root` wrapper; accent (cyan) and density (balanced) are pinned. Shared primitives in `components/strata/ui.tsx`: `I` (icons), `Logo`, `TokenPair`, `Stat`, `Pill`, `PanelCard`, `Seg`, `Field`, `sx` class strings, `shortKey`, `fmtUsd`. Strata components: `AppHeader`, `WalletSummary`, `SwapModal`, `PositionRail`, `PositionLiqChart`, `PositionBinBreakdown`, `PositionHeader`. **Lint gotcha:** ~7 pre-existing `react-hooks/exhaustive-deps` / set-state-in-effect warnings in panels; `npm run build` does not gate on ESLint — do not chase these.
+
+**Client helpers (`lib/client.ts`).** Safe to import from `"use client"` components. Exports `postJson<T>` (typed POST helper) and shared response types: `TxStepResult`, `PreviewResult`, `ActionResponse`.
 
 **Strategy / distribution (`lib/strategies.ts`).** Two deposit paths:
 - *Preset* → `StrategyParameters {minBinId, maxBinId, strategyType}` for `addLiquidityByStrategy` / `initializePositionAndAddLiquidityByStrategy`.

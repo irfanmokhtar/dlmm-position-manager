@@ -16,6 +16,7 @@ export interface TxStepResult {
   index: number;
   ok: boolean;
   signature?: string;
+  logs?: string[];
   error?: string;
 }
 

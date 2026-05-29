@@ -106,9 +106,23 @@ export async function previewTransactions(
   }
 }
 
+async function fetchLogs(signature: string): Promise<string[] | undefined> {
+  try {
+    const connection = getConnection();
+    const tx = await connection.getTransaction(signature, {
+      commitment: "confirmed",
+      maxSupportedTransactionVersion: 0,
+    });
+    return tx?.meta?.logMessages ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Sign + send all transactions in order, confirming each before the next.
  * Stops at the first failure and returns results collected so far.
+ * On-chain logs are fetched after each confirmation for debugging.
  */
 export async function sendTransactions(
   input: Transaction | Transaction[],
@@ -132,16 +146,18 @@ export async function sendTransactions(
         { signature, blockhash, lastValidBlockHeight },
         "confirmed",
       );
+      const logs = await fetchLogs(signature);
       if (conf.value.err) {
         results.push({
           index: i,
           ok: false,
           signature,
+          logs,
           error: JSON.stringify(conf.value.err),
         });
         break;
       }
-      results.push({ index: i, ok: true, signature });
+      results.push({ index: i, ok: true, signature, logs });
     } catch (e) {
       results.push({
         index: i,

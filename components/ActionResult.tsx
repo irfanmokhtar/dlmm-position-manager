@@ -47,14 +47,18 @@ export function ActionResult({ res }: { res: ActionResponse | null }) {
         <p style={{ fontWeight: 600, margin: 0 }}>{res.ok ? "Sent" : "Failed"}</p>
         <ul className="mono" style={{ marginTop: 4, paddingLeft: 16 }}>
           {res.results.map((r) => (
-            <li key={r.index}>
+            <li key={r.index} style={{ marginBottom: 6 }}>
               #{r.index} {r.ok ? "✓" : "✗"}{" "}
               {r.signature ? (
                 <a href={`https://solscan.io/tx/${r.signature}`} target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>
                   {r.signature.slice(0, 8)}…
                 </a>
-              ) : (
-                r.error
+              ) : null}
+              {r.error && <span style={{ color: "var(--danger)", marginLeft: 4 }}>{r.error}</span>}
+              {r.logs && r.logs.length > 0 && (
+                <pre style={{ marginTop: 4, maxHeight: 160, overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all", fontSize: 10, color: "var(--text-3)" }}>
+                  {r.logs.join("\n")}
+                </pre>
               )}
             </li>
           ))}
