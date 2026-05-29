@@ -19,13 +19,17 @@ export function ResizePanel({
   onDone: () => void;
   lockedPosition?: PositionInfo;
   // chart-driven pre-fill from an edge-drag (resize) gesture
-  draft?: { side: "Lower" | "Upper"; action: "increase" | "decrease"; length: number; key: number };
+  draft?: { lower?: { action: "increase" | "decrease"; length: number }; upper?: { action: "increase" | "decrease"; length: number }; key: number };
 }) {
   const { selected } = useWallet();
   const [target, setTarget] = useState(lockedPosition?.publicKey ?? positions[0]?.publicKey ?? "");
-  const [action, setAction] = useState<"increase" | "decrease">("increase");
-  const [side, setSide] = useState<"Lower" | "Upper">("Upper");
-  const [length, setLength] = useState(10);
+  // Each edge is independent: on/off, widen vs narrow, bin count.
+  const [lowerOn, setLowerOn] = useState(false);
+  const [lowerAction, setLowerAction] = useState<"increase" | "decrease">("increase");
+  const [lowerLen, setLowerLen] = useState(10);
+  const [upperOn, setUpperOn] = useState(true);
+  const [upperAction, setUpperAction] = useState<"increase" | "decrease">("increase");
+  const [upperLen, setUpperLen] = useState(10);
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<ActionResponse | null>(null);
   const [previewOk, setPreviewOk] = useState(false);
@@ -33,17 +37,29 @@ export function ResizePanel({
   const pos = positions.find((p) => p.publicKey === target);
   const width = pos ? pos.upperBinId - pos.lowerBinId + 1 : 0;
 
+  const lowerActive = lowerOn && lowerLen > 0;
+  const upperActive = upperOn && upperLen > 0;
+  const anyActive = lowerActive || upperActive;
+  const anyDecrease = (lowerActive && lowerAction === "decrease") || (upperActive && upperAction === "decrease");
+
   useEffect(() => {
     setPreviewOk(false);
     setRes(null);
-  }, [target, action, side, length]);
+  }, [target, lowerOn, lowerAction, lowerLen, upperOn, upperAction, upperLen]);
 
-  // apply a chart edge-drag (resize) gesture (keyed)
+  // apply a chart edge-drag (resize) gesture (keyed) — absent side toggles off
   useEffect(() => {
     if (!draft) return;
-    setSide(draft.side);
-    setAction(draft.action);
-    setLength(draft.length);
+    setLowerOn(Boolean(draft.lower));
+    if (draft.lower) {
+      setLowerAction(draft.lower.action);
+      setLowerLen(draft.lower.length);
+    }
+    setUpperOn(Boolean(draft.upper));
+    if (draft.upper) {
+      setUpperAction(draft.upper.action);
+      setUpperLen(draft.upper.length);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft?.key]);
 
@@ -55,9 +71,8 @@ export function ResizePanel({
         dryRun,
         wallet: selected || undefined,
         positionPubKey: target,
-        action,
-        side,
-        length,
+        lower: lowerActive ? { action: lowerAction, length: lowerLen } : undefined,
+        upper: upperActive ? { action: upperAction, length: upperLen } : undefined,
       });
       setRes(r);
       if (dryRun) setPreviewOk(Boolean(r.preview?.ok));
@@ -73,10 +88,9 @@ export function ResizePanel({
   }
 
   function execute() {
-    const msg =
-      action === "decrease"
-        ? "Shrink position? Rent is refunded only on full close, not on shrink."
-        : "Expand position? This pays rent for new bins.";
+    const msg = anyDecrease
+      ? "Shrink position? Rent is refunded only on full close, not on shrink."
+      : "Expand position? This pays rent for new bins.";
     if (confirm(msg)) run(false);
   }
 
@@ -103,19 +117,26 @@ export function ResizePanel({
         </div>
       )}
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div className={sx.label}>Action</div>
-        <Seg value={action} options={[["increase", "Widen"], ["decrease", "Narrow"]]} onChange={setAction} />
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div className={sx.label}>Side</div>
-        <Seg value={side} options={[["Upper", "Upper"], ["Lower", "Lower"]]} onChange={setSide} />
-      </div>
+      <div style={{ fontSize: "var(--text-xs)", color: "var(--text-3)" }}>Current width {width} bins · adjust either edge or both.</div>
 
-      <div style={grid2}>
-        <Field label="Current width" value={`${width} bins`} mono={false} onChange={() => {}} />
-        <Field label={`Bins to ${action === "increase" ? "add" : "remove"}`} value={length} type="number" onChange={(v) => setLength(Number(v))} />
-      </div>
+      <SideRow
+        title="Upper edge"
+        on={upperOn}
+        onToggle={setUpperOn}
+        action={upperAction}
+        onAction={setUpperAction}
+        length={upperLen}
+        onLength={setUpperLen}
+      />
+      <SideRow
+        title="Lower edge"
+        on={lowerOn}
+        onToggle={setLowerOn}
+        action={lowerAction}
+        onAction={setLowerAction}
+        length={lowerLen}
+        onLength={setLowerLen}
+      />
 
       <div
         style={{
@@ -137,7 +158,7 @@ export function ResizePanel({
       </div>
 
       <div style={{ display: "flex", gap: 8 }}>
-        <button className="btn btn-ghost" style={{ flex: 1 }} disabled={busy} onClick={() => run(true)}>
+        <button className="btn btn-ghost" style={{ flex: 1 }} disabled={busy || !anyActive} onClick={() => run(true)}>
           {busy ? "…" : "Preview"}
         </button>
         <button className="btn btn-primary" style={{ flex: 1 }} disabled={busy || !previewOk} onClick={execute}>
@@ -147,5 +168,51 @@ export function ResizePanel({
 
       <ActionResult res={res} />
     </PanelCard>
+  );
+}
+
+// One resizable edge: include toggle + Widen/Narrow + bin count.
+function SideRow({
+  title,
+  on,
+  onToggle,
+  action,
+  onAction,
+  length,
+  onLength,
+}: {
+  title: string;
+  on: boolean;
+  onToggle: (v: boolean) => void;
+  action: "increase" | "decrease";
+  onAction: (v: "increase" | "decrease") => void;
+  length: number;
+  onLength: (v: number) => void;
+}) {
+  return (
+    <div
+      style={{
+        border: "1px solid var(--border-1)",
+        borderRadius: 8,
+        padding: 10,
+        opacity: on ? 1 : 0.6,
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      }}
+    >
+      <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+        <input type="checkbox" checked={on} onChange={(e) => onToggle(e.target.checked)} />
+        <span className={sx.label} style={{ fontWeight: 600 }}>{title}</span>
+      </label>
+      {on && (
+        <div style={grid2}>
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <Seg value={action} options={[["increase", "Widen"], ["decrease", "Narrow"]]} onChange={onAction} />
+          </div>
+          <Field label={`Bins to ${action === "increase" ? "add" : "remove"}`} value={length} type="number" onChange={(v) => onLength(Number(v))} />
+        </div>
+      )}
+    </div>
   );
 }

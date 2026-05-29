@@ -10,8 +10,9 @@
 import { useRef, useState } from "react";
 import { PoolResponse, PositionInfo, toUi } from "@/lib/types";
 
+type ResizeOp = { action: "increase" | "decrease"; length: number };
 export type ChartGesture =
-  | { type: "resize"; side: "Lower" | "Upper"; action: "increase" | "decrease"; length: number }
+  | { type: "resize"; lower?: ResizeOp; upper?: ResizeOp }
   | { type: "recenter"; shiftBins: number }
   | { type: "withdraw"; fromBinId: number; toBinId: number; bps: number }
   | { type: "add"; minBinId: number; maxBinId: number };
@@ -54,6 +55,7 @@ export function PositionLiqChart({
   onGesture,
   removeBand,
   addBand,
+  resizeBand,
 }: {
   pool: PoolResponse;
   position: PositionInfo;
@@ -67,6 +69,7 @@ export function PositionLiqChart({
   // Committed band selections lifted to the page (survive a chart remount).
   removeBand?: { lo: number; hi: number; pct: number };
   addBand?: { lo: number; hi: number };
+  resizeBand?: { lo: number; hi: number };
 }) {
   const dx = pool.pool.tokenX.decimals;
   const dy = pool.pool.tokenY.decimals;
@@ -80,6 +83,9 @@ export function PositionLiqChart({
   // back to their idle defaults on release even though the form keeps the value.
   const [wBand, setWBand] = useState<{ lo: number; hi: number; pct: number } | null>(null);
   const [aBand, setABand] = useState<{ lo: number; hi: number } | null>(null);
+  // Persisted resize edges — without this the LO/HI handles snap back to the
+  // position edges on release even though Resize keeps the bin count.
+  const [rBand, setRBand] = useState<{ lo: number; hi: number } | null>(null);
 
   const W = width;
   const H = height;
@@ -137,14 +143,28 @@ export function PositionLiqChart({
   const aLo0 = clamp(positionHi - Math.round((positionHi - positionLo) * 0.25), positionLo, positionHi);
   const aHi0 = clamp(positionHi - 1, positionLo, positionHi);
 
-  // draft-aware geometry (reflects an in-flight drag)
+  // which markers to draw: per armed mode when interactive, else all (static preview)
+  const showResize = !interactive || mode === "resize";
+  const showRebalance = !interactive || mode === "rebalance";
+  const showRemove = !interactive || mode === "remove";
+  const showAdd = !interactive || mode === "add";
+
+  // draft-aware geometry (reflects an in-flight drag); when idle in resize mode
+  // the edges hold the last pulled band so they line up with the form's bin count
   let dLo = positionLo;
   let dHi = positionHi;
-  if (drag?.kind === "lo") dLo = drag.lo;
-  else if (drag?.kind === "hi") dHi = drag.hi;
-  else if (drag?.kind === "grip") {
+  if (drag?.kind === "grip") {
     dLo = positionLo + drag.shift;
     dHi = positionHi + drag.shift;
+  } else {
+    // seed both edges from the persisted resize band so dragging one edge keeps
+    // the other's offset, then let the active drag override its own edge
+    if (showResize) {
+      dLo = clamp(rBand?.lo ?? resizeBand?.lo ?? positionLo, minId, maxId);
+      dHi = clamp(rBand?.hi ?? resizeBand?.hi ?? positionHi, minId, maxId);
+    }
+    if (drag?.kind === "lo") dLo = drag.lo;
+    if (drag?.kind === "hi") dHi = drag.hi;
   }
   const wLo = drag && "wLo" in drag ? Math.min(drag.wLo, drag.wHi) : clamp(wBand?.lo ?? removeBand?.lo ?? wLo0, positionLo, positionHi);
   const wHi = drag && "wHi" in drag ? Math.max(drag.wLo, drag.wHi) : clamp(wBand?.hi ?? removeBand?.hi ?? wHi0, positionLo, positionHi);
@@ -154,13 +174,13 @@ export function PositionLiqChart({
 
   const loPrice = priceAt(dLo);
   const hiPrice = priceAt(dHi);
-  const showGhost = drag?.kind === "lo" || drag?.kind === "hi" || drag?.kind === "grip";
-
-  // which markers to draw: per armed mode when interactive, else all (static preview)
-  const showResize = !interactive || mode === "resize";
-  const showRebalance = !interactive || mode === "rebalance";
-  const showRemove = !interactive || mode === "remove";
-  const showAdd = !interactive || mode === "add";
+  // ghost = hatched preview of the resized range; persists after release so the
+  // pulled band stays visible (not just mid-drag)
+  const showGhost =
+    drag?.kind === "lo" ||
+    drag?.kind === "hi" ||
+    drag?.kind === "grip" ||
+    (showResize && !drag && (dLo !== positionLo || dHi !== positionHi));
 
   // ── pointer → bin/pct helpers ──
   const binAt = (clientX: number) => {
@@ -227,19 +247,22 @@ export function PositionLiqChart({
       setWBand({ lo: Math.min(d.wLo, d.wHi), hi: Math.max(d.wLo, d.wHi), pct: d.pct });
     } else if (d.kind === "alo" || d.kind === "ahi") {
       setABand({ lo: Math.min(d.aLo, d.aHi), hi: Math.max(d.aLo, d.aHi) });
+    } else if (d.kind === "lo" || d.kind === "hi") {
+      // Keep BOTH edges so dragging one side preserves the other's offset.
+      const finalLo = d.kind === "lo" ? d.lo : dLo;
+      const finalHi = d.kind === "hi" ? d.hi : dHi;
+      setRBand(finalLo === positionLo && finalHi === positionHi ? null : { lo: finalLo, hi: finalHi });
+      if (onGesture) {
+        const lower: ResizeOp | undefined =
+          finalLo === positionLo ? undefined : { action: finalLo < positionLo ? "increase" : "decrease", length: Math.abs(positionLo - finalLo) };
+        const upper: ResizeOp | undefined =
+          finalHi === positionHi ? undefined : { action: finalHi > positionHi ? "increase" : "decrease", length: Math.abs(finalHi - positionHi) };
+        if (lower || upper) onGesture({ type: "resize", lower, upper });
+      }
+      return;
     }
     if (!onGesture) return;
     switch (d.kind) {
-      case "lo": {
-        const len = Math.abs(positionLo - d.lo);
-        if (len) onGesture({ type: "resize", side: "Lower", action: d.lo < positionLo ? "increase" : "decrease", length: len });
-        break;
-      }
-      case "hi": {
-        const len = Math.abs(d.hi - positionHi);
-        if (len) onGesture({ type: "resize", side: "Upper", action: d.hi > positionHi ? "increase" : "decrease", length: len });
-        break;
-      }
       case "grip":
         if (d.shift) onGesture({ type: "recenter", shiftBins: d.shift });
         break;
@@ -365,8 +388,8 @@ export function PositionLiqChart({
       {/* markers — shown per armed mode (or all, when used as a static preview) */}
       {showResize && (
         <>
-          <EdgeHandle x={x(dLo)} top={PAD.t - 4} bottom={H - PAD.b + 4} side="left" label="LO" onPointerDown={start({ kind: "lo", lo: positionLo })} interactive={interactive} />
-          <EdgeHandle x={x(dHi + 1)} top={PAD.t - 4} bottom={H - PAD.b + 4} side="right" label="HI" onPointerDown={start({ kind: "hi", hi: positionHi })} interactive={interactive} />
+          <EdgeHandle x={x(dLo)} top={PAD.t - 4} bottom={H - PAD.b + 4} side="left" label="LO" onPointerDown={start({ kind: "lo", lo: dLo })} interactive={interactive} />
+          <EdgeHandle x={x(dHi + 1)} top={PAD.t - 4} bottom={H - PAD.b + 4} side="right" label="HI" onPointerDown={start({ kind: "hi", hi: dHi })} interactive={interactive} />
         </>
       )}
       {showRebalance && (

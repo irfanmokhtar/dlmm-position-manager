@@ -55,7 +55,7 @@ export default function PositionPage() {
   const draftKey = useRef(0);
   const [addDraft, setAddDraft] = useState<{ minBinId: number; maxBinId: number; key: number }>();
   const [removeDraft, setRemoveDraft] = useState<{ fromBinId: number; toBinId: number; bps: number; key: number }>();
-  const [resizeDraft, setResizeDraft] = useState<{ side: "Lower" | "Upper"; action: "increase" | "decrease"; length: number; key: number }>();
+  const [resizeDraft, setResizeDraft] = useState<{ lower?: { action: "increase" | "decrease"; length: number }; upper?: { action: "increase" | "decrease"; length: number }; key: number }>();
   const [highlight, setHighlight] = useState<string | null>(null);
   const [chartMode, setChartMode] = useState<ChartMode>(null);
   const [showBreakdown, setShowBreakdown] = useState(false);
@@ -67,7 +67,7 @@ export default function PositionPage() {
       g.type === "add" ? "add-panel" : g.type === "withdraw" ? "remove-panel" : g.type === "resize" ? "resize-panel" : "rebalance-panel";
     if (g.type === "add") setAddDraft({ minBinId: g.minBinId, maxBinId: g.maxBinId, key });
     else if (g.type === "withdraw") setRemoveDraft({ fromBinId: g.fromBinId, toBinId: g.toBinId, bps: g.bps, key });
-    else if (g.type === "resize") setResizeDraft({ side: g.side, action: g.action, length: g.length, key });
+    else if (g.type === "resize") setResizeDraft({ lower: g.lower, upper: g.upper, key });
     document.getElementById(panelId)?.scrollIntoView({ behavior: "smooth", block: "center" });
     setHighlight(panelId);
     window.setTimeout(() => setHighlight((h) => (h === panelId ? null : h)), 1500);
@@ -177,6 +177,22 @@ export default function PositionPage() {
                 onGesture={handleGesture}
                 removeBand={removeDraft ? { lo: Math.min(removeDraft.fromBinId, removeDraft.toBinId), hi: Math.max(removeDraft.fromBinId, removeDraft.toBinId), pct: removeDraft.bps / 100 } : undefined}
                 addBand={addDraft ? { lo: Math.min(addDraft.minBinId, addDraft.maxBinId), hi: Math.max(addDraft.minBinId, addDraft.maxBinId) } : undefined}
+                resizeBand={
+                  resizeDraft
+                    ? {
+                        lo: resizeDraft.lower
+                          ? resizeDraft.lower.action === "increase"
+                            ? position.lowerBinId - resizeDraft.lower.length
+                            : position.lowerBinId + resizeDraft.lower.length
+                          : position.lowerBinId,
+                        hi: resizeDraft.upper
+                          ? resizeDraft.upper.action === "increase"
+                            ? position.upperBinId + resizeDraft.upper.length
+                            : position.upperBinId - resizeDraft.upper.length
+                          : position.upperBinId,
+                      }
+                    : undefined
+                }
               />
               <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", fontSize: "var(--text-xs)", color: "var(--text-3)", paddingTop: 8, borderTop: "1px solid var(--border-1)" }}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
