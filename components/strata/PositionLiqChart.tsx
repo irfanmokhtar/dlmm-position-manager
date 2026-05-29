@@ -88,8 +88,8 @@ export function PositionLiqChart({
   const PH = H - PAD.t - PAD.b;
 
   // window: a little wider than the position so the surroundings are visible
-  const minId = Math.min(positionLo - 12, activeBinId - 22);
-  const maxId = Math.max(positionHi + 12, activeBinId + 22);
+  const minId = Math.min(positionLo - 50, activeBinId - 22);
+  const maxId = Math.max(positionHi + 50, activeBinId + 22);
 
   // Bars reflect the POSITION's own per-bin holdings (matches the breakdown
   // card), not pool-wide liquidity — otherwise the active-bin neighborhood's

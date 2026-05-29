@@ -58,6 +58,7 @@ export default function PositionPage() {
   const [resizeDraft, setResizeDraft] = useState<{ side: "Lower" | "Upper"; action: "increase" | "decrease"; length: number; key: number }>();
   const [highlight, setHighlight] = useState<string | null>(null);
   const [chartMode, setChartMode] = useState<ChartMode>(null);
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   const handleGesture = useCallback((g: ChartGesture) => {
     const key = draftKey.current + 1;
@@ -139,16 +140,16 @@ export default function PositionPage() {
               onClosePosition={() => document.getElementById("remove-panel")?.scrollIntoView({ behavior: "smooth", block: "center" })}
             />
 
-            {/* Centerpiece: big chart + per-bin breakdown */}
-            <div style={{ display: "grid", gridTemplateColumns: "1.55fr 1fr", gap: "var(--gap-card)", alignItems: "start" }}>
-              <div className="card" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>Position liquidity</div>
-                    <div style={{ color: "var(--text-3)", fontSize: "var(--text-xs)", marginTop: 2, maxWidth: 460 }}>
-                      {chartMode ? MODE_HINTS[chartMode] : "Arm an action to reveal its on-chart control."}
-                    </div>
+            {/* Centerpiece: full-width chart; per-bin breakdown toggled on demand */}
+            <div className="card" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>Position liquidity</div>
+                  <div style={{ color: "var(--text-3)", fontSize: "var(--text-xs)", marginTop: 2, maxWidth: 460 }}>
+                    {chartMode ? MODE_HINTS[chartMode] : "Arm an action to reveal its on-chart control."}
                   </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   <div className="seg">
                     {MODES.map((m) => (
                       <button
@@ -160,40 +161,44 @@ export default function PositionPage() {
                       </button>
                     ))}
                   </div>
-                </div>
-                <PositionLiqChart
-                  pool={pool}
-                  position={position}
-                  activeBinId={activeBinId}
-                  width={760}
-                  height={340}
-                  interactive
-                  mode={chartMode}
-                  onGesture={handleGesture}
-                  removeBand={removeDraft ? { lo: Math.min(removeDraft.fromBinId, removeDraft.toBinId), hi: Math.max(removeDraft.fromBinId, removeDraft.toBinId), pct: removeDraft.bps / 100 } : undefined}
-                  addBand={addDraft ? { lo: Math.min(addDraft.minBinId, addDraft.maxBinId), hi: Math.max(addDraft.minBinId, addDraft.maxBinId) } : undefined}
-                />
-                <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", fontSize: "var(--text-xs)", color: "var(--text-3)", paddingTop: 8, borderTop: "1px solid var(--border-1)" }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--token-x)" }} />
-                    SOL · bins above active
-                  </span>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--token-y)" }} />
-                    USDC · bins below active
-                  </span>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 2, background: "linear-gradient(to bottom, var(--token-x) 50%, var(--token-y) 50%)" }} />
-                    active bin · mixed
-                  </span>
-                  <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--token-x)", opacity: 0.28 }} />
-                    outside your range
-                  </span>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setShowBreakdown((v) => !v)}>
+                    {showBreakdown ? "Hide bins" : "Show per-bin"}
+                  </button>
                 </div>
               </div>
-              <PositionBinBreakdown pool={pool} position={position} activeBinId={activeBinId} />
+              <PositionLiqChart
+                pool={pool}
+                position={position}
+                activeBinId={activeBinId}
+                width={1320}
+                height={360}
+                interactive
+                mode={chartMode}
+                onGesture={handleGesture}
+                removeBand={removeDraft ? { lo: Math.min(removeDraft.fromBinId, removeDraft.toBinId), hi: Math.max(removeDraft.fromBinId, removeDraft.toBinId), pct: removeDraft.bps / 100 } : undefined}
+                addBand={addDraft ? { lo: Math.min(addDraft.minBinId, addDraft.maxBinId), hi: Math.max(addDraft.minBinId, addDraft.maxBinId) } : undefined}
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", fontSize: "var(--text-xs)", color: "var(--text-3)", paddingTop: 8, borderTop: "1px solid var(--border-1)" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--token-x)" }} />
+                  SOL · bins above active
+                </span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--token-y)" }} />
+                  USDC · bins below active
+                </span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 2, background: "linear-gradient(to bottom, var(--token-x) 50%, var(--token-y) 50%)" }} />
+                  active bin · mixed
+                </span>
+                <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--token-x)", opacity: 0.28 }} />
+                  outside your range
+                </span>
+              </div>
             </div>
+
+            {showBreakdown && <PositionBinBreakdown pool={pool} position={position} activeBinId={activeBinId} />}
 
             {/* Action panels — all four visible at once. Chart gestures
                 pre-fill the matching panel (highlighted briefly on release). */}
