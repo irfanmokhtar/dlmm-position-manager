@@ -42,6 +42,24 @@ export function ResizePanel({
   const anyActive = lowerActive || upperActive;
   const anyDecrease = (lowerActive && lowerAction === "decrease") || (upperActive && upperAction === "decrease");
 
+  // Count bins in the doomed (shrunk-away) range that still hold liquidity — Lower
+  // trims from the bottom, Upper from the top. The route auto-claims fees/rewards
+  // and withdraws their liquidity before shrinking; surface that here.
+  const nz = (s: string) => s !== "" && s !== "0";
+  const occupiedInRange = (from: number, to: number) =>
+    (pos?.binData ?? []).filter(
+      (b) => b.binId >= from && b.binId <= to && (nz(b.positionXAmount) || nz(b.positionYAmount)),
+    ).length;
+  const lowerOccupied =
+    pos && lowerActive && lowerAction === "decrease"
+      ? occupiedInRange(pos.lowerBinId, pos.lowerBinId + Math.min(lowerLen, width - 1) - 1)
+      : 0;
+  const upperOccupied =
+    pos && upperActive && upperAction === "decrease"
+      ? occupiedInRange(pos.upperBinId - Math.min(upperLen, width - 1) + 1, pos.upperBinId)
+      : 0;
+  const occupiedToEmpty = lowerOccupied + upperOccupied;
+
   useEffect(() => {
     setPreviewOk(false);
     setRes(null);
@@ -89,7 +107,9 @@ export function ResizePanel({
 
   function execute() {
     const msg = anyDecrease
-      ? "Shrink position? Rent is refunded only on full close, not on shrink."
+      ? occupiedToEmpty > 0
+        ? `Shrink position? ${occupiedToEmpty} bin(s) in the shrunk range hold liquidity — their fees & rewards will be claimed and the liquidity withdrawn first. Rent is refunded only on full close, not on shrink.`
+        : "Shrink position? Rent is refunded only on full close, not on shrink."
       : "Expand position? This pays rent for new bins.";
     if (confirm(msg)) run(false);
   }
@@ -154,6 +174,13 @@ export function ResizePanel({
         <div style={{ color: "var(--text-2)" }}>
           <strong style={{ color: "var(--text-1)" }}>Heads-up.</strong> Widening only changes the range — seed new bins with Add.
           Narrowing doesn&apos;t refund rent; only full <span className="mono">closePosition</span> does.
+          {occupiedToEmpty > 0 && (
+            <>
+              {" "}
+              <strong style={{ color: "var(--text-1)" }}>{occupiedToEmpty} bin{occupiedToEmpty > 1 ? "s" : ""}</strong> in the
+              shrunk range still hold liquidity — their fees &amp; rewards will be claimed and the liquidity withdrawn before shrinking.
+            </>
+          )}
         </div>
       </div>
 
