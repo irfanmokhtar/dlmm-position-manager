@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { postJson } from "@/lib/client";
 import { useWallet } from "@/lib/wallet-context";
-import { TOKENS } from "@/lib/constants";
-import { I, Field, sx } from "@/components/strata/ui";
+import { TOKENS, SOL_RESERVE_LAMPORTS } from "@/lib/constants";
+import { I, Field, PctButtons, BalLabel, sx } from "@/components/strata/ui";
 
 interface QuoteResp {
   quote: Record<string, unknown>;
@@ -13,7 +13,7 @@ interface QuoteResp {
 }
 
 export function SwapPanel({ onDone }: { onDone: () => void }) {
-  const { selected } = useWallet();
+  const { selected, balances } = useWallet();
   const [dir, setDir] = useState<"SOLtoUSDC" | "USDCtoSOL">("SOLtoUSDC");
   const [amount, setAmount] = useState("0.1");
   const [slippageBps, setSlippageBps] = useState(50);
@@ -22,6 +22,8 @@ export function SwapPanel({ onDone }: { onDone: () => void }) {
   const [msg, setMsg] = useState<string | null>(null);
 
   const [inTok, outTok] = dir === "SOLtoUSDC" ? [TOKENS.SOL, TOKENS.USDC] : [TOKENS.USDC, TOKENS.SOL];
+  const inIsSol = inTok.symbol === "SOL";
+  const inBalance = inIsSol ? balances?.sol ?? null : balances?.usdc ?? null;
 
   async function getQuote() {
     setBusy(true);
@@ -84,15 +86,26 @@ export function SwapPanel({ onDone }: { onDone: () => void }) {
         <Field label="Slippage bps" value={slippageBps} type="number" onChange={(v) => setSlippageBps(Number(v))} />
       </div>
 
-      <Field
-        label={`Amount (${inTok.symbol})`}
-        value={amount}
-        suffix={inTok.symbol}
-        onChange={(v) => {
-          setAmount(v);
-          setQuote(null);
-        }}
-      />
+      <div>
+        <Field
+          label={<span style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>Amount ({inTok.symbol}) <BalLabel balanceRaw={inBalance} decimals={inTok.decimals} symbol={inTok.symbol} /></span>}
+          value={amount}
+          suffix={inTok.symbol}
+          onChange={(v) => {
+            setAmount(v);
+            setQuote(null);
+          }}
+        />
+        <PctButtons
+          balanceRaw={inBalance}
+          decimals={inTok.decimals}
+          reserveRaw={inIsSol ? SOL_RESERVE_LAMPORTS : undefined}
+          onPick={(v) => {
+            setAmount(v);
+            setQuote(null);
+          }}
+        />
+      </div>
 
       {quote && (
         <div style={{ fontSize: "var(--text-sm)" }}>

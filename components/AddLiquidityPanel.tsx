@@ -5,8 +5,8 @@ import { PoolResponse, PositionInfo } from "@/lib/types";
 import { ActionResponse, postJson } from "@/lib/client";
 import { useWallet } from "@/lib/wallet-context";
 import { priceToBinId } from "@/lib/binmath";
-import { MAX_POSITION_BINS } from "@/lib/constants";
-import { I, PanelCard, Seg, Field, sx } from "@/components/strata/ui";
+import { MAX_POSITION_BINS, TOKENS, SOL_RESERVE_LAMPORTS } from "@/lib/constants";
+import { I, PanelCard, Seg, Field, PctButtons, BalLabel, sx } from "@/components/strata/ui";
 import { ActionResult } from "./ActionResult";
 
 const grid2 = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } as const;
@@ -25,7 +25,7 @@ export function AddLiquidityPanel({
   // chart-driven pre-fill: a new `key` applies the range (the "add band" gesture)
   draft?: { minBinId: number; maxBinId: number; key: number };
 }) {
-  const { selected } = useWallet();
+  const { selected, balances } = useWallet();
   const active = pool.activeBin.binId;
   const activePrice = Number(pool.activeBin.pricePerToken);
   const binStep = pool.pool.binStep;
@@ -192,8 +192,24 @@ export function AddLiquidityPanel({
       )}
 
       <div style={grid2}>
-        <Field label="SOL amount" value={xAmount} suffix="SOL" onChange={setXAmount} />
-        <Field label="USDC amount" value={yAmount} suffix="USDC" onChange={setYAmount} />
+        <div>
+          <Field
+            label={<span style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>SOL amount <BalLabel balanceRaw={balances?.sol ?? null} decimals={TOKENS.SOL.decimals} symbol="SOL" /></span>}
+            value={xAmount}
+            suffix="SOL"
+            onChange={setXAmount}
+          />
+          <PctButtons balanceRaw={balances?.sol ?? null} decimals={TOKENS.SOL.decimals} reserveRaw={SOL_RESERVE_LAMPORTS} onPick={setXAmount} />
+        </div>
+        <div>
+          <Field
+            label={<span style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>USDC amount <BalLabel balanceRaw={balances?.usdc ?? null} decimals={TOKENS.USDC.decimals} symbol="USDC" /></span>}
+            value={yAmount}
+            suffix="USDC"
+            onChange={setYAmount}
+          />
+          <PctButtons balanceRaw={balances?.usdc ?? null} decimals={TOKENS.USDC.decimals} onPick={setYAmount} />
+        </div>
       </div>
 
       <Seg

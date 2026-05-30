@@ -22,6 +22,10 @@ export const TOKENS = {
 // Meteora DLMM data API (read-only pool/position/analytics data).
 export const DATAPI_BASE = "https://dlmm.datapi.meteora.ag";
 
+// Native SOL kept in reserve when picking "100%" of the SOL balance for a
+// deposit/swap — covers tx fees + wSOL wrap rent so the tx doesn't fail.
+export const SOL_RESERVE_LAMPORTS = "30000000"; // 0.03 SOL
+
 // SDK hard limits (from @meteora-ag/dlmm 1.9.x).
 export const MAX_POSITION_BINS = 1400; // extended position cap
 export const BINS_PER_BIN_ARRAY = 70;

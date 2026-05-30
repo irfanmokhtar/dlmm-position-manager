@@ -82,6 +82,12 @@ export interface WalletTotalClaimsResponse {
   lastRewardClaimTime?: string | null;
 }
 
+// Active wallet's available (uninvested) balances, raw base units as strings.
+export interface WalletBalanceResponse {
+  sol: string; // lamports
+  usdc: string; // micro-USDC
+}
+
 // raw amount string -> human number using token decimals
 export function toUi(raw: string | number, decimals: number): number {
   return Number(raw) / 10 ** decimals;

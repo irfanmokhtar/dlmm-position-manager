@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { PositionInfo } from "@/lib/types";
 import { ActionResponse, postJson } from "@/lib/client";
 import { useWallet } from "@/lib/wallet-context";
-import { I, PanelCard, Seg, Field, sx } from "@/components/strata/ui";
+import { I, PanelCard, Seg, Field, PctButtons, BalLabel, sx } from "@/components/strata/ui";
+import { TOKENS, SOL_RESERVE_LAMPORTS } from "@/lib/constants";
 import { ActionResult } from "./ActionResult";
 
 const grid2 = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } as const;
@@ -18,7 +19,7 @@ export function RebalancePanel({
   onDone: () => void;
   lockedPosition?: PositionInfo;
 }) {
-  const { selected } = useWallet();
+  const { selected, balances } = useWallet();
   const [target, setTarget] = useState(lockedPosition?.publicKey ?? positions[0]?.publicKey ?? "");
   const [strategy, setStrategy] = useState<"Spot" | "Curve" | "BidAsk">("Spot");
   const [withdrawXBps, setWithdrawXBps] = useState(10000);
@@ -108,8 +109,24 @@ export function RebalancePanel({
       </div>
 
       <div style={grid2}>
-        <Field label="Top-up SOL" value={topUpX} suffix="SOL" onChange={setTopUpX} />
-        <Field label="Top-up USDC" value={topUpY} suffix="USDC" onChange={setTopUpY} />
+        <div>
+          <Field
+            label={<span style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>Top-up SOL <BalLabel balanceRaw={balances?.sol ?? null} decimals={TOKENS.SOL.decimals} symbol="SOL" /></span>}
+            value={topUpX}
+            suffix="SOL"
+            onChange={setTopUpX}
+          />
+          <PctButtons balanceRaw={balances?.sol ?? null} decimals={TOKENS.SOL.decimals} reserveRaw={SOL_RESERVE_LAMPORTS} onPick={setTopUpX} />
+        </div>
+        <div>
+          <Field
+            label={<span style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>Top-up USDC <BalLabel balanceRaw={balances?.usdc ?? null} decimals={TOKENS.USDC.decimals} symbol="USDC" /></span>}
+            value={topUpY}
+            suffix="USDC"
+            onChange={setTopUpY}
+          />
+          <PctButtons balanceRaw={balances?.usdc ?? null} decimals={TOKENS.USDC.decimals} onPick={setTopUpY} />
+        </div>
         <Field label="Active-bin slippage" value={slip} type="number" onChange={setSlip} />
       </div>
 

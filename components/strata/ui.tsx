@@ -3,6 +3,8 @@
 // STRATA shared design-system primitives, ported from the design handoff bundle
 // (components.jsx). Presentational only — no data fetching.
 import type { ReactNode } from "react";
+import BN from "bn.js";
+import { fromRaw } from "@/lib/amount";
 
 // ── ICONS ────────────────────────────────────────────────────────────────
 function Icon({
@@ -283,5 +285,61 @@ export function Field({
         )}
       </div>
     </div>
+  );
+}
+
+// Quick "% of wallet balance" buttons (25/50/75/100) that fill an amount Field.
+// `balanceRaw` is raw base units; `reserveRaw` (optional, SOL only) is subtracted
+// at 100% to leave gas/rent. Disabled until the balance loads.
+export function PctButtons({
+  balanceRaw,
+  decimals,
+  onPick,
+  reserveRaw,
+}: {
+  balanceRaw: string | null;
+  decimals: number;
+  onPick: (human: string) => void;
+  reserveRaw?: string;
+}) {
+  const pick = (pct: number) => {
+    if (balanceRaw == null) return;
+    let usable = new BN(balanceRaw);
+    if (pct === 100 && reserveRaw) usable = usable.sub(new BN(reserveRaw));
+    if (usable.isNeg()) usable = new BN(0);
+    const amount = usable.muln(pct).divn(100);
+    onPick(fromRaw(amount, decimals));
+  };
+  return (
+    <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+      {[25, 50, 75, 100].map((p) => (
+        <button
+          key={p}
+          className="btn btn-sm btn-ghost"
+          style={{ flex: 1 }}
+          disabled={balanceRaw == null}
+          onClick={() => pick(p)}
+        >
+          {p}%
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Compact "Bal: X SYM" readout for an available wallet balance.
+export function BalLabel({
+  balanceRaw,
+  decimals,
+  symbol,
+}: {
+  balanceRaw: string | null;
+  decimals: number;
+  symbol: string;
+}) {
+  return (
+    <span className="mono" style={{ fontSize: 11, color: "var(--text-3)" }}>
+      Bal: {balanceRaw == null ? "…" : fromRaw(balanceRaw, decimals, 4) || "0"} {symbol}
+    </span>
   );
 }
