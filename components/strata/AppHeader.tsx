@@ -2,6 +2,7 @@
 
 import { WalletSelector } from "@/components/WalletSelector";
 import { useTheme } from "@/lib/theme-context";
+import { INTERVAL_OPTIONS, useRefreshInterval } from "@/lib/refresh-context";
 import { I, Logo } from "./ui";
 
 export function AppHeader({
@@ -14,6 +15,7 @@ export function AppHeader({
   loading?: boolean;
 }) {
   const { theme, toggle } = useTheme();
+  const { intervalMs, setIntervalMs } = useRefreshInterval();
   return (
     <header
       style={{
@@ -55,6 +57,20 @@ export function AppHeader({
         </div>
         <button className="btn btn-ghost btn-sm" onClick={onSwap}>{I.swap} Swap</button>
         <WalletSelector />
+        <select
+          className="input"
+          style={{ width: "auto" }}
+          value={intervalMs}
+          onChange={(e) => setIntervalMs(Number(e.target.value))}
+          title="Auto-refresh interval"
+          aria-label="Auto-refresh interval"
+        >
+          {INTERVAL_OPTIONS.map(([ms, label]) => (
+            <option key={ms} value={ms}>
+              {label}
+            </option>
+          ))}
+        </select>
         <button className="btn btn-icon" aria-label="Refresh" onClick={onRefresh} disabled={loading}>
           {I.refresh}
         </button>

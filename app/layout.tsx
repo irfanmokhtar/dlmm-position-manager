@@ -4,6 +4,7 @@ import "./globals.css";
 import "./strata.css";
 import { WalletProvider } from "@/lib/wallet-context";
 import { ThemeProvider } from "@/lib/theme-context";
+import { RefreshProvider } from "@/lib/refresh-context";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,7 +33,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
-          <WalletProvider>{children}</WalletProvider>
+          <RefreshProvider>
+            <WalletProvider>{children}</WalletProvider>
+          </RefreshProvider>
         </ThemeProvider>
       </body>
     </html>

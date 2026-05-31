@@ -16,6 +16,7 @@ import { RemovePanel } from "@/components/RemovePanel";
 import { ResizePanel } from "@/components/ResizePanel";
 import { RebalancePanel } from "@/components/RebalancePanel";
 import { useWallet } from "@/lib/wallet-context";
+import { useAutoRefresh } from "@/lib/refresh-context";
 import { PoolResponse, PositionInfo, PositionsResponse, PositionPnL, PositionPnLResponse } from "@/lib/types";
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -76,8 +77,8 @@ export default function PositionPage() {
   const ring = (id: string): React.CSSProperties =>
     highlight === id ? { outline: "2px solid var(--accent-1)", outlineOffset: 3, borderRadius: "var(--r-lg)" } : {};
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     setError(null);
     try {
       const posUrl = selected ? `/api/positions?wallet=${selected}` : "/api/positions";
@@ -103,13 +104,15 @@ export default function PositionPage() {
     load();
   }, [load]);
 
+  useAutoRefresh(() => load({ silent: true }));
+
   const position: PositionInfo | null = positions?.positions.find((p) => p.publicKey === id) ?? null;
   const activeBinId = positions?.activeBinId ?? pool?.activeBin.binId ?? 0;
   const panelBase = position ? { positions: [position], lockedPosition: position, onDone: load } : null;
 
   return (
     <div className="strata" style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg-0)" }}>
-      <AppHeader onSwap={() => setSwapOpen(true)} onRefresh={load} loading={loading} />
+      <AppHeader onSwap={() => setSwapOpen(true)} onRefresh={() => load()} loading={loading} />
 
       <main style={{ padding: 24, display: "flex", flexDirection: "column", gap: "var(--gap-card)" }}>
         {error && (

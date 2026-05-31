@@ -9,6 +9,7 @@ import { WalletSummary } from "@/components/strata/WalletSummary";
 import { PositionRail } from "@/components/strata/PositionRail";
 import { SwapModal } from "@/components/strata/SwapModal";
 import { useWallet } from "@/lib/wallet-context";
+import { useAutoRefresh } from "@/lib/refresh-context";
 import { PoolResponse, PositionInfo, PositionsResponse } from "@/lib/types";
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -30,8 +31,8 @@ export default function Dashboard() {
   const [createMode, setCreateMode] = useState(false);
   const [swapOpen, setSwapOpen] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     setError(null);
     try {
       const posUrl = selected ? `/api/positions?wallet=${selected}` : "/api/positions";
@@ -51,6 +52,8 @@ export default function Dashboard() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useAutoRefresh(() => load({ silent: true }));
 
   // deep-link: /?pos=<pubkey> opens that position's rail
   useEffect(() => {
@@ -77,7 +80,7 @@ export default function Dashboard() {
 
   return (
     <div className="strata" style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg-0)" }}>
-      <AppHeader onSwap={() => setSwapOpen(true)} onRefresh={load} loading={loading} />
+      <AppHeader onSwap={() => setSwapOpen(true)} onRefresh={() => load()} loading={loading} />
 
       <div style={{ display: "flex", flex: 1, alignItems: "flex-start", minHeight: 0 }}>
         <main style={{ flex: 1, minWidth: 0, padding: 20, display: "flex", flexDirection: "column", gap: "var(--gap-card)" }}>
